@@ -5,6 +5,10 @@ from dataclasses import dataclass, field
 
 FLAG_CF = 0x0001
 FLAG_ZF = 0x0040
+FLAG_SF = 0x0080
+FLAG_IF = 0x0200
+FLAG_DF = 0x0400
+FLAG_OF = 0x0800
 
 
 @dataclass
