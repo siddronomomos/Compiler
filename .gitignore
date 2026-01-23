@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+.env/
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/
+
+# Build/test artifacts
+.pytest_cache/
+.mypy_cache/
+.pyre/
+.pytype/
+coverage/
+htmlcov/
+
+# Emulator artifacts
+/dos_root/
+
+# Logs
+*.log
