@@ -50,10 +50,9 @@ This is a **software emulator** for a small MASM 6.11-compatible subset. It focu
 - Binary literals are supported (e.g., `1011b`).
 - Escaped characters in strings are supported (e.g., `\n`, `\r`, `\t`).
 
-## Running the Example
-```
-python src/main.py examples/hello.asm
-```
+## Running the Examples
+- `python src/main.py examples/hello.asm`
+- `python src/main.py examples/bubble_sort.asm`
 
 ## Project Layout
 - src/emu: emulator core

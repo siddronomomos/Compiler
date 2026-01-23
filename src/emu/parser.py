@@ -4,7 +4,7 @@ import re
 from dataclasses import dataclass
 from typing import Iterable
 
-from .instructions import Instruction
+from .instructions import Instruction, validate_opcode
 from .memory import Memory
 
 
@@ -65,7 +65,7 @@ class AsmParser:
                     if not rest:
                         continue
                     line = rest
-                op, args = self._parse_instruction(line)
+                op, args = self._parse_instruction(line, line_no)
                 instructions.append(Instruction(op=op, args=args, line=line_no, raw=raw.rstrip("\n")))
             else:
                 continue
@@ -73,10 +73,11 @@ class AsmParser:
         return ProgramImage(instructions=instructions, labels=labels, data_labels=data_labels, constants=constants)
 
     def _split_label(self, line: str) -> tuple[str | None, str | None]:
-        if ":" in line:
-            name, rest = line.split(":", 1)
-            name = name.strip()
-            return name, rest.strip() if rest.strip() else None
+        colon_index = self._find_colon_outside_quotes(line)
+        if colon_index is not None:
+            name = line[:colon_index].strip()
+            rest = line[colon_index + 1 :].strip()
+            return name, rest if rest else None
         tokens = line.split(None, 1)
         if len(tokens) >= 2 and tokens[1].lower().startswith("db "):
             return tokens[0], tokens[1]
@@ -84,9 +85,26 @@ class AsmParser:
             return tokens[0], tokens[1]
         return None, line
 
-    def _parse_instruction(self, line: str) -> tuple[str, list[str]]:
+    def _find_colon_outside_quotes(self, line: str) -> int | None:
+        in_quote = False
+        i = 0
+        while i < len(line):
+            ch = line[i]
+            if ch == "'":
+                in_quote = not in_quote
+            elif ch == ":" and not in_quote:
+                return i
+            # Skip escaped characters inside quotes to avoid toggling on escaped quotes
+            if ch == "\\" and in_quote and i + 1 < len(line):
+                i += 2
+                continue
+            i += 1
+        return None
+
+    def _parse_instruction(self, line: str, line_no: int) -> tuple[str, list[str]]:
         tokens = line.split(None, 1)
         op = tokens[0].lower()
+        validate_opcode(op, line_no)
         args = []
         if len(tokens) > 1:
             args = [arg.strip() for arg in tokens[1].split(",")]
