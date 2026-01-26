@@ -14,6 +14,7 @@ class ProgramImage:
     labels: dict[str, int]
     data_labels: dict[str, int]
     constants: dict[str, int]
+    stack_size: int | None = None
 
 
 class AsmParser:
@@ -27,6 +28,7 @@ class AsmParser:
         labels: dict[str, int] = {}
         data_labels: dict[str, int] = {}
         constants: dict[str, int] = {}
+        stack_size: int | None = None
         data_offset = 0
 
         for line_no, raw in enumerate(lines, start=1):
@@ -34,20 +36,39 @@ class AsmParser:
             if not line:
                 continue
             lower = line.lower()
+            if line.startswith("name "):
+                continue
+            if line.startswith("org "):
+                if data_offset is not None:
+                    pass
+                data_offset = self._parse_number(line.split(None, 1)[1])
+                continue
             if lower == ".data":
                 section = "data"
                 continue
             if lower == ".code":
                 section = "code"
                 continue
+            if lower.startswith(".stack"):
+                parts = line.split(None, 1)
+                if len(parts) == 1:
+                    stack_size = 0x100
+                else:
+                    stack_size = self._parse_number(parts[1])
+                continue
 
             if self._is_equ(line):
-                name, value = self._parse_equ(line)
+                if section == "data":
+                    name, value = self._parse_equ_with_offset(line, data_offset, data_labels, constants)
+                else:
+                    name, value = self._parse_equ(line)
                 constants[name.lower()] = value
                 continue
 
             if section == "data":
                 if line.lower().startswith("org "):
+                    if data_offset is not None:
+                        pass
                     data_offset = self._parse_number(line.split(None, 1)[1])
                     continue
                 label, rest = self._split_label(line)
@@ -70,14 +91,21 @@ class AsmParser:
             else:
                 continue
 
-        return ProgramImage(instructions=instructions, labels=labels, data_labels=data_labels, constants=constants)
+        return ProgramImage(
+            instructions=instructions,
+            labels=labels,
+            data_labels=data_labels,
+            constants=constants,
+            stack_size=stack_size,
+        )
 
     def _split_label(self, line: str) -> tuple[str | None, str | None]:
         colon_index = self._find_colon_outside_quotes(line)
         if colon_index is not None:
-            name = line[:colon_index].strip()
-            rest = line[colon_index + 1 :].strip()
-            return name, rest if rest else None
+            name = line[:colon_index]
+            if name.strip() and not any(ch.isspace() for ch in name):
+                rest = line[colon_index + 1 :].strip()
+                return name.strip(), rest if rest else None
         tokens = line.split(None, 1)
         if len(tokens) >= 2 and tokens[1].lower().startswith("db "):
             return tokens[0], tokens[1]
@@ -190,6 +218,52 @@ class AsmParser:
         name = parts[0]
         value = self._parse_number(parts[2])
         return name, value
+
+    def _parse_equ_with_offset(
+        self,
+        line: str,
+        current_offset: int,
+        data_labels: dict[str, int],
+        constants: dict[str, int],
+    ) -> tuple[str, int]:
+        parts = line.split(None, 2)
+        name = parts[0]
+        expr = parts[2].strip()
+        value = self._eval_equ_expr(expr, current_offset, data_labels, constants)
+        return name, value
+
+    def _eval_equ_expr(
+        self,
+        expr: str,
+        current_offset: int,
+        data_labels: dict[str, int],
+        constants: dict[str, int],
+    ) -> int:
+        expr = expr.strip()
+        if "$" in expr:
+            expr = expr.replace("$", str(current_offset))
+        terms = re.findall(r"[+-]?\s*[^+\-\s]+", expr)
+        total = 0
+        for raw in terms:
+            token = raw.replace(" ", "")
+            if not token:
+                continue
+            sign = 1
+            if token[0] in {"+", "-"}:
+                if token[0] == "-":
+                    sign = -1
+                token = token[1:]
+            if not token:
+                continue
+            key = token.lower()
+            if key in data_labels:
+                total += sign * data_labels[key]
+                continue
+            if key in constants:
+                total += sign * constants[key]
+                continue
+            total += sign * self._parse_number(token)
+        return total
 
     def _split_values(self, values: str) -> list[str]:
         items: list[str] = []

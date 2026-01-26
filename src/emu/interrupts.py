@@ -3,10 +3,11 @@ from __future__ import annotations
 import os
 import sys
 import fnmatch
+import time
 from dataclasses import dataclass
 from typing import BinaryIO
 
-from .cpu import CPU, FLAG_CF
+from .cpu import CPU, FLAG_CF, FLAG_ZF
 from .memory import Memory
 
 ERROR_FILE_NOT_FOUND = 0x02
@@ -112,12 +113,59 @@ class DOSKernel:
         else:
             self._set_error(ERROR_INVALID_ACCESS)
 
+    def int_20h(self) -> None:
+        self.cpu.exit_code = self.cpu.get_reg8("al")
+        self.cpu.halted = True
+        self._clear_error()
+
+    def int_16h(self) -> None:
+        ah = self.cpu.get_reg8("ah")
+        if ah == 0x00:
+            try:
+                ch = sys.stdin.read(1)
+            except Exception:
+                ch = ""
+            if not ch:
+                ch = "\n"
+            self.cpu.set_reg8("al", ord(ch[0]))
+            self.cpu.set_reg8("ah", 0x00)
+            self._clear_error()
+            return
+        if ah == 0x01:
+            self.cpu.set_flag(FLAG_CF, False)
+            self.cpu.set_flag(FLAG_ZF, True)
+            return
+        self._set_error(ERROR_INVALID_ACCESS)
+
+    def int_1Ah(self) -> None:
+        ah = self.cpu.get_reg8("ah")
+        if ah == 0x00:
+            now = time.localtime()
+            seconds = now.tm_hour * 3600 + now.tm_min * 60 + now.tm_sec
+            ticks = int(seconds * 18.2065)
+            self.cpu.set_reg16("cx", (ticks >> 16) & 0xFFFF)
+            self.cpu.set_reg16("dx", ticks & 0xFFFF)
+            self.cpu.set_reg8("al", 0x00)
+            self._clear_error()
+            return
+        if ah == 0x02:
+            now = time.localtime()
+            self.cpu.set_reg8("ch", self._to_bcd(now.tm_hour))
+            self.cpu.set_reg8("cl", self._to_bcd(now.tm_min))
+            self.cpu.set_reg8("dh", self._to_bcd(now.tm_sec))
+            self._clear_error()
+            return
+        self._set_error(ERROR_INVALID_ACCESS)
+
     def _clear_error(self) -> None:
         self.cpu.set_flag(FLAG_CF, False)
 
     def _set_error(self, code: int) -> None:
         self.cpu.set_flag(FLAG_CF, True)
         self.cpu.set_reg16("ax", code)
+
+    def _to_bcd(self, value: int) -> int:
+        return ((value // 10) << 4) | (value % 10)
 
     def _int21_display_char(self) -> None:
         ch = self.cpu.get_reg8("dl")

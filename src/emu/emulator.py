@@ -46,6 +46,7 @@ class Emulator:
         program = parser.parse(asm_text.splitlines())
         self.program = program
         self.executor.set_program(program)
+        self._init_stack(program)
         self.cpu.ip = 0
         return program
 
@@ -91,3 +92,16 @@ class Emulator:
 
     def _execute(self, instr: Instruction) -> None:
         self.executor.execute(instr)
+
+    def _init_stack(self, program: ProgramImage) -> None:
+        if program.stack_size is None:
+            return
+        size = program.stack_size & 0xFFFF
+        if size == 0:
+            return
+        self.cpu.sp = size
+        base = self.memory.phys(self.cpu.ss, 0)
+        max_len = min(size, self.memory.size - base)
+        if max_len > 0:
+            self.memory.write_block(base, bytes([0]) * max_len)
+

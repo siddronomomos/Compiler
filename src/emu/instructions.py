@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Callable
 
-from .cpu import CPU, FLAG_CF, FLAG_ZF, FLAG_SF, FLAG_OF, FLAG_IF, FLAG_DF
+from .cpu import CPU, FLAG_CF, FLAG_PF, FLAG_AF, FLAG_ZF, FLAG_SF, FLAG_OF, FLAG_IF, FLAG_DF
 from .memory import Memory
 from .interrupts import DOSKernel
 
@@ -12,7 +12,9 @@ SUPPORTED_OPS: tuple[str, ...] = (
     "mov",
     "lea",
     "add",
+    "adc",
     "sub",
+    "sbb",
     "cmp",
     "inc",
     "dec",
@@ -39,6 +41,7 @@ SUPPORTED_OPS: tuple[str, ...] = (
     "jnz",
     "jc",
     "jnc",
+    "jae",
     "jg",
     "jl",
     "jge",
@@ -64,12 +67,33 @@ SUPPORTED_OPS: tuple[str, ...] = (
     "stosw",
     "lodsb",
     "lodsw",
+    "cmpsb",
+    "cmpsw",
+    "scasb",
+    "scasw",
     "rep",
     "repe",
     "repne",
     "int",
     "nop",
     "hlt",
+    "daa",
+    "das",
+    "aaa",
+    "aas",
+    "aam",
+    "aad",
+    "lahf",
+    "sahf",
+    "cbw",
+    "cwd",
+    "xlat",
+    "enter",
+    "leave",
+    "int3",
+    "iret",
+    "pusha",
+    "popa",
 )
 
 
@@ -85,6 +109,7 @@ class InstructionExecutor:
         self.memory = memory
         self.kernel = kernel
         self.program: Any | None = None
+        self._dispatch = self._build_dispatch()
 
     def set_program(self, program: Any | None) -> None:
         self.program = program
@@ -93,119 +118,221 @@ class InstructionExecutor:
         op = instr.op
         args = instr.args
         validate_opcode(op, instr.line)
-        if op in {"rep", "repe", "repne"}:
-            self._exec_rep(op, args, instr)
-        if op == "mov":
-            self._exec_mov(args, instr)
-        elif op == "lea":
-            self._exec_lea(args, instr)
-        elif op == "add":
-            self._exec_add(args, instr)
-        elif op == "sub":
-            self._exec_sub(args, instr)
-        elif op == "cmp":
-            self._exec_cmp(args, instr)
-        elif op == "and":
-            self._exec_and(args, instr)
-        elif op == "or":
-            self._exec_or(args, instr)
-        elif op == "xor":
-            self._exec_xor(args, instr)
-        elif op == "not":
-            self._exec_not(args, instr)
-        elif op == "neg":
-            self._exec_neg(args, instr)
-        elif op == "test":
-            self._exec_test(args, instr)
-        elif op in {"shl", "sal"}:
-            self._exec_shift(args, instr, kind="shl")
-        elif op == "shr":
-            self._exec_shift(args, instr, kind="shr")
-        elif op == "sar":
-            self._exec_shift(args, instr, kind="sar")
-        elif op == "rol":
-            self._exec_rotate(args, instr, kind="rol")
-        elif op == "ror":
-            self._exec_rotate(args, instr, kind="ror")
-        elif op == "mul":
-            self._exec_mul(args, instr, signed=False)
-        elif op == "imul":
-            self._exec_mul(args, instr, signed=True)
-        elif op == "div":
-            self._exec_div(args, instr, signed=False)
-        elif op == "idiv":
-            self._exec_div(args, instr, signed=True)
-        elif op == "inc":
-            self._exec_inc(args, instr)
-        elif op == "dec":
-            self._exec_dec(args, instr)
-        elif op == "jmp":
-            self._exec_jmp(args, instr)
-        elif op in {"je", "jz"}:
-            self._exec_je(args, instr)
-        elif op in {"jne", "jnz"}:
-            self._exec_jne(args, instr)
-        elif op == "jc":
-            self._exec_jc(args, instr)
-        elif op == "jnc":
-            self._exec_jnc(args, instr)
-        elif op == "jg":
-            self._exec_jg(args, instr)
-        elif op == "jl":
-            self._exec_jl(args, instr)
-        elif op == "jge":
-            self._exec_jge(args, instr)
-        elif op == "jle":
-            self._exec_jle(args, instr)
-        elif op == "loop":
-            self._exec_loop(args, instr, kind="loop")
-        elif op == "loope":
-            self._exec_loop(args, instr, kind="loope")
-        elif op == "loopne":
-            self._exec_loop(args, instr, kind="loopne")
-        elif op == "call":
-            self._exec_call(args, instr)
-        elif op == "ret":
-            self._exec_ret(args, instr)
-        elif op == "push":
-            self._exec_push(args, instr)
-        elif op == "pop":
-            self._exec_pop(args, instr)
-        elif op == "pushf":
-            self._exec_pushf(args, instr)
-        elif op == "popf":
-            self._exec_popf(args, instr)
-        elif op == "clc":
-            self.cpu.set_flag(FLAG_CF, False)
-        elif op == "stc":
-            self.cpu.set_flag(FLAG_CF, True)
-        elif op == "cmc":
-            self.cpu.set_flag(FLAG_CF, not self.cpu.get_flag(FLAG_CF))
-        elif op == "cli":
-            self.cpu.set_flag(FLAG_IF, False)
-        elif op == "sti":
-            self.cpu.set_flag(FLAG_IF, True)
-        elif op == "xchg":
-            self._exec_xchg(args, instr)
-        elif op == "movsb":
-            self._exec_movs(size=8)
-        elif op == "movsw":
-            self._exec_movs(size=16)
-        elif op == "stosb":
-            self._exec_stos(size=8)
-        elif op == "stosw":
-            self._exec_stos(size=16)
-        elif op == "lodsb":
-            self._exec_lods(size=8)
-        elif op == "lodsw":
-            self._exec_lods(size=16)
-        elif op == "int":
-            self._exec_int(args, instr)
-        elif op == "nop":
-            pass
-        elif op == "hlt":
-            self.cpu.halted = True
+        self._validate_operands(op, args, instr)
+        handler = self._dispatch.get(op)
+        if handler is None:
+            raise NotImplementedError(f"Unsupported op: {op} at line {instr.line}")
+        handler(op, args, instr)
         self.cpu.ip += 1
+
+    def _validate_operands(self, op: str, args: list[str], instr: Instruction) -> None:
+        zero_ops = {
+            "ret",
+            "pushf",
+            "popf",
+            "clc",
+            "stc",
+            "cmc",
+            "cli",
+            "sti",
+            "nop",
+            "hlt",
+            "movsb",
+            "movsw",
+            "stosb",
+            "stosw",
+            "lodsb",
+            "lodsw",
+            "cmpsb",
+            "cmpsw",
+            "scasb",
+            "scasw",
+            "daa",
+            "das",
+            "aaa",
+            "aas",
+            "lahf",
+            "sahf",
+            "cbw",
+            "cwd",
+            "xlat",
+            "leave",
+            "int3",
+            "iret",
+            "pusha",
+            "popa",
+        }
+        one_ops = {
+            "inc",
+            "dec",
+            "jmp",
+            "je",
+            "jz",
+            "jne",
+            "jnz",
+            "jc",
+            "jnc",
+            "jae",
+            "jg",
+            "jl",
+            "jge",
+            "jle",
+            "loop",
+            "loope",
+            "loopne",
+            "call",
+            "push",
+            "pop",
+            "int",
+            "mul",
+            "imul",
+            "div",
+            "idiv",
+            "not",
+            "neg",
+            "rep",
+            "repe",
+            "repne",
+        }
+        two_ops = {
+            "mov",
+            "lea",
+            "add",
+            "adc",
+            "sub",
+            "sbb",
+            "cmp",
+            "and",
+            "or",
+            "xor",
+            "test",
+            "shl",
+            "sal",
+            "shr",
+            "sar",
+            "rol",
+            "ror",
+            "xchg",
+        }
+        if op in zero_ops and args:
+            raise ValueError(f"{op} expects no operands at line {instr.line}")
+        if op in one_ops and len(args) != 1:
+            raise ValueError(f"{op} expects 1 operand at line {instr.line}")
+        if op in two_ops and len(args) != 2:
+            raise ValueError(f"{op} expects 2 operands at line {instr.line}")
+        if op in {"aam", "aad"} and len(args) > 1:
+            raise ValueError(f"{op} expects 0 or 1 operand at line {instr.line}")
+        if op in {"aam", "aad"} and len(args) == 1:
+            try:
+                value = self._parse_number(args[0], label_ok=True)
+            except Exception as exc:
+                raise ValueError(f"{op} expects an immediate byte at line {instr.line}") from exc
+            if value & 0xFF != value:
+                raise ValueError(f"{op} expects an immediate byte at line {instr.line}")
+        if op == "enter":
+            if len(args) not in {1, 2}:
+                raise ValueError(f"enter expects 1 or 2 operands at line {instr.line}")
+            size = self._parse_number(args[0], label_ok=True)
+            if size & 0xFFFF != size:
+                raise ValueError(f"enter expects a 16-bit size at line {instr.line}")
+            if len(args) == 2:
+                level = self._parse_number(args[1], label_ok=True)
+                if level & 0xFF != level:
+                    raise ValueError(f"enter expects an 8-bit nesting level at line {instr.line}")
+        if op in {"rep", "repe", "repne"}:
+            target = args[0].lower()
+            valid_targets = {"movsb", "movsw", "stosb", "stosw", "lodsb", "lodsw", "cmpsb", "cmpsw", "scasb", "scasw"}
+            if target not in valid_targets:
+                raise ValueError(f"{op} expects a string instruction at line {instr.line}")
+
+    def _build_dispatch(self) -> dict[str, Callable[[str, list[str], Instruction], None]]:
+        return {
+            "mov": lambda _op, args, instr: self._exec_mov(args, instr),
+            "lea": lambda _op, args, instr: self._exec_lea(args, instr),
+            "add": lambda _op, args, instr: self._exec_add(args, instr),
+            "adc": lambda _op, args, instr: self._exec_adc(args, instr),
+            "sub": lambda _op, args, instr: self._exec_sub(args, instr),
+            "sbb": lambda _op, args, instr: self._exec_sbb(args, instr),
+            "cmp": lambda _op, args, instr: self._exec_cmp(args, instr),
+            "and": lambda _op, args, instr: self._exec_and(args, instr),
+            "or": lambda _op, args, instr: self._exec_or(args, instr),
+            "xor": lambda _op, args, instr: self._exec_xor(args, instr),
+            "not": lambda _op, args, instr: self._exec_not(args, instr),
+            "neg": lambda _op, args, instr: self._exec_neg(args, instr),
+            "test": lambda _op, args, instr: self._exec_test(args, instr),
+            "shl": lambda _op, args, instr: self._exec_shift(args, instr, kind="shl"),
+            "sal": lambda _op, args, instr: self._exec_shift(args, instr, kind="shl"),
+            "shr": lambda _op, args, instr: self._exec_shift(args, instr, kind="shr"),
+            "sar": lambda _op, args, instr: self._exec_shift(args, instr, kind="sar"),
+            "rol": lambda _op, args, instr: self._exec_rotate(args, instr, kind="rol"),
+            "ror": lambda _op, args, instr: self._exec_rotate(args, instr, kind="ror"),
+            "mul": lambda _op, args, instr: self._exec_mul(args, instr, signed=False),
+            "imul": lambda _op, args, instr: self._exec_mul(args, instr, signed=True),
+            "div": lambda _op, args, instr: self._exec_div(args, instr, signed=False),
+            "idiv": lambda _op, args, instr: self._exec_div(args, instr, signed=True),
+            "inc": lambda _op, args, instr: self._exec_inc(args, instr),
+            "dec": lambda _op, args, instr: self._exec_dec(args, instr),
+            "jmp": lambda _op, args, instr: self._exec_jmp(args, instr),
+            "je": lambda _op, args, instr: self._exec_je(args, instr),
+            "jz": lambda _op, args, instr: self._exec_je(args, instr),
+            "jne": lambda _op, args, instr: self._exec_jne(args, instr),
+            "jnz": lambda _op, args, instr: self._exec_jne(args, instr),
+            "jc": lambda _op, args, instr: self._exec_jc(args, instr),
+            "jnc": lambda _op, args, instr: self._exec_jnc(args, instr),
+            "jae": lambda _op, args, instr: self._exec_jnc(args, instr),
+            "jg": lambda _op, args, instr: self._exec_jg(args, instr),
+            "jl": lambda _op, args, instr: self._exec_jl(args, instr),
+            "jge": lambda _op, args, instr: self._exec_jge(args, instr),
+            "jle": lambda _op, args, instr: self._exec_jle(args, instr),
+            "loop": lambda _op, args, instr: self._exec_loop(args, instr, kind="loop"),
+            "loope": lambda _op, args, instr: self._exec_loop(args, instr, kind="loope"),
+            "loopne": lambda _op, args, instr: self._exec_loop(args, instr, kind="loopne"),
+            "call": lambda _op, args, instr: self._exec_call(args, instr),
+            "ret": lambda _op, args, instr: self._exec_ret(args, instr),
+            "push": lambda _op, args, instr: self._exec_push(args, instr),
+            "pop": lambda _op, args, instr: self._exec_pop(args, instr),
+            "pushf": lambda _op, args, instr: self._exec_pushf(args, instr),
+            "popf": lambda _op, args, instr: self._exec_popf(args, instr),
+            "clc": lambda _op, _args, _instr: self.cpu.set_flag(FLAG_CF, False),
+            "stc": lambda _op, _args, _instr: self.cpu.set_flag(FLAG_CF, True),
+            "cmc": lambda _op, _args, _instr: self.cpu.set_flag(FLAG_CF, not self.cpu.get_flag(FLAG_CF)),
+            "cli": lambda _op, _args, _instr: self.cpu.set_flag(FLAG_IF, False),
+            "sti": lambda _op, _args, _instr: self.cpu.set_flag(FLAG_IF, True),
+            "xchg": lambda _op, args, instr: self._exec_xchg(args, instr),
+            "movsb": lambda _op, _args, _instr: self._exec_movs(size=8),
+            "movsw": lambda _op, _args, _instr: self._exec_movs(size=16),
+            "stosb": lambda _op, _args, _instr: self._exec_stos(size=8),
+            "stosw": lambda _op, _args, _instr: self._exec_stos(size=16),
+            "lodsb": lambda _op, _args, _instr: self._exec_lods(size=8),
+            "lodsw": lambda _op, _args, _instr: self._exec_lods(size=16),
+            "cmpsb": lambda _op, _args, _instr: self._exec_cmps(size=8),
+            "cmpsw": lambda _op, _args, _instr: self._exec_cmps(size=16),
+            "scasb": lambda _op, _args, _instr: self._exec_scas(size=8),
+            "scasw": lambda _op, _args, _instr: self._exec_scas(size=16),
+            "rep": lambda op, args, instr: self._exec_rep(op, args, instr),
+            "repe": lambda op, args, instr: self._exec_rep(op, args, instr),
+            "repne": lambda op, args, instr: self._exec_rep(op, args, instr),
+            "int": lambda _op, args, instr: self._exec_int(args, instr),
+            "nop": lambda _op, _args, _instr: None,
+            "hlt": lambda _op, _args, _instr: setattr(self.cpu, "halted", True),
+            "daa": lambda _op, _args, instr: self._exec_daa(instr),
+            "das": lambda _op, _args, instr: self._exec_das(instr),
+            "aaa": lambda _op, _args, instr: self._exec_aaa(instr),
+            "aas": lambda _op, _args, instr: self._exec_aas(instr),
+            "aam": lambda _op, args, instr: self._exec_aam(args, instr),
+            "aad": lambda _op, args, instr: self._exec_aad(args, instr),
+            "lahf": lambda _op, _args, instr: self._exec_lahf(instr),
+            "sahf": lambda _op, _args, instr: self._exec_sahf(instr),
+            "cbw": lambda _op, _args, instr: self._exec_cbw(instr),
+            "cwd": lambda _op, _args, instr: self._exec_cwd(instr),
+            "xlat": lambda _op, _args, instr: self._exec_xlat(instr),
+            "enter": lambda _op, args, instr: self._exec_enter(args, instr),
+            "leave": lambda _op, _args, instr: self._exec_leave(instr),
+            "int3": lambda _op, _args, instr: self._exec_int3(instr),
+            "iret": lambda _op, _args, instr: self._exec_iret(instr),
+            "pusha": lambda _op, _args, instr: self._exec_pusha(instr),
+            "popa": lambda _op, _args, instr: self._exec_popa(instr),
+        }
 
     def _exec_mov(self, args, instr) -> None:
         if len(args) != 2:
@@ -256,6 +383,47 @@ class InstructionExecutor:
             return
         raise NotImplementedError(f"Unsupported add dest: {dest} at line {instr.line}")
 
+    def _exec_adc(self, args, instr) -> None:
+        if len(args) != 2:
+            raise ValueError(f"adc expects 2 operands at line {instr.line}")
+        dest = args[0].lower()
+        src = args[1].lower()
+        carry = 1 if self.cpu.get_flag(FLAG_CF) else 0
+        if dest in self._reg8_names():
+            left = self.cpu.get_reg8(dest)
+            right = self._resolve_operand(src, size=8)
+            right_carry = (right + carry) & 0xFF
+            result = left + right_carry
+            self._update_add_flags(left, right_carry, result, 8)
+            self._update_zf(result, 8)
+            self._update_sf(result, 8)
+            self.cpu.set_reg8(dest, result & 0xFF)
+            return
+        if dest in self._reg16_names():
+            left = self.cpu.get_reg16(dest)
+            right = self._resolve_operand(src, size=16)
+            right_carry = (right + carry) & 0xFFFF
+            result = left + right_carry
+            self._update_add_flags(left, right_carry, result, 16)
+            self._update_zf(result, 16)
+            self._update_sf(result, 16)
+            self.cpu.set_reg16(dest, result & 0xFFFF)
+            return
+        if self._is_memory(dest):
+            size = self._resolve_mem_size(dest) or self._resolve_size_hint(src)
+            if size is None:
+                raise NotImplementedError("memory adc requires size")
+            left = self._read_memory(dest, size)
+            right = self._resolve_operand(src, size=size)
+            right_carry = (right + carry) & self._mask(size)
+            result = left + right_carry
+            self._update_add_flags(left, right_carry, result, size)
+            self._update_zf(result, size)
+            self._update_sf(result, size)
+            self._write_memory(dest, size, result)
+            return
+        raise NotImplementedError(f"Unsupported adc dest: {dest} at line {instr.line}")
+
     def _exec_sub(self, args, instr) -> None:
         if len(args) != 2:
             raise ValueError(f"sub expects 2 operands at line {instr.line}")
@@ -271,6 +439,47 @@ class InstructionExecutor:
             self._arith_mem(dest, src, op="sub")
             return
         raise NotImplementedError(f"Unsupported sub dest: {dest} at line {instr.line}")
+
+    def _exec_sbb(self, args, instr) -> None:
+        if len(args) != 2:
+            raise ValueError(f"sbb expects 2 operands at line {instr.line}")
+        dest = args[0].lower()
+        src = args[1].lower()
+        borrow = 1 if self.cpu.get_flag(FLAG_CF) else 0
+        if dest in self._reg8_names():
+            left = self.cpu.get_reg8(dest)
+            right = self._resolve_operand(src, size=8)
+            right_borrow = (right + borrow) & 0xFF
+            result = left - right_borrow
+            self._update_sub_flags(left, right_borrow, result, 8)
+            self._update_zf(result, 8)
+            self._update_sf(result, 8)
+            self.cpu.set_reg8(dest, result & 0xFF)
+            return
+        if dest in self._reg16_names():
+            left = self.cpu.get_reg16(dest)
+            right = self._resolve_operand(src, size=16)
+            right_borrow = (right + borrow) & 0xFFFF
+            result = left - right_borrow
+            self._update_sub_flags(left, right_borrow, result, 16)
+            self._update_zf(result, 16)
+            self._update_sf(result, 16)
+            self.cpu.set_reg16(dest, result & 0xFFFF)
+            return
+        if self._is_memory(dest):
+            size = self._resolve_mem_size(dest) or self._resolve_size_hint(src)
+            if size is None:
+                raise NotImplementedError("memory sbb requires size")
+            left = self._read_memory(dest, size)
+            right = self._resolve_operand(src, size=size)
+            right_borrow = (right + borrow) & self._mask(size)
+            result = left - right_borrow
+            self._update_sub_flags(left, right_borrow, result, size)
+            self._update_zf(result, size)
+            self._update_sf(result, size)
+            self._write_memory(dest, size, result)
+            return
+        raise NotImplementedError(f"Unsupported sbb dest: {dest} at line {instr.line}")
 
     def _exec_cmp(self, args, instr) -> None:
         if len(args) != 2:
@@ -348,6 +557,9 @@ class InstructionExecutor:
     def _exec_ret(self, args, instr) -> None:
         if args:
             raise ValueError(f"ret expects no operands at line {instr.line}")
+        if self.cpu.sp == 0xFFFE:
+            self.cpu.halted = True
+            return
         addr = self._pop16()
         self._jump_to(addr)
 
@@ -374,12 +586,28 @@ class InstructionExecutor:
         if len(args) != 1:
             raise ValueError(f"int expects 1 operand at line {instr.line}")
         vector = self._parse_number(args[0])
+        self._handle_interrupt(vector, instr)
+
+    def _handle_interrupt(self, vector: int, instr) -> None:
         if vector == 0x21:
             self.kernel.int_21h()
-        elif vector == 0x10:
+            return
+        if vector == 0x10:
             self.kernel.int_10h()
-        else:
-            raise NotImplementedError(f"Unsupported interrupt: {vector:#x}")
+            return
+        if vector == 0x20:
+            self.kernel.int_20h()
+            return
+        if vector == 0x16:
+            self.kernel.int_16h()
+            return
+        if vector == 0x1A:
+            self.kernel.int_1Ah()
+            return
+        if vector == 0x03:
+            self.cpu.halted = True
+            return
+        raise NotImplementedError(f"Unsupported interrupt: {vector:#x} at line {instr.line}")
 
     def _resolve_operand(self, token: str, size: int) -> int:
         token = token.strip().lower()
@@ -486,41 +714,55 @@ class InstructionExecutor:
 
     def _inc_reg(self, dest: str, size: int) -> None:
         if size == 8:
-            value = (self.cpu.get_reg8(dest) + 1) & 0xFF
+            old = self.cpu.get_reg8(dest)
+            value = (old + 1) & 0xFF
             self.cpu.set_reg8(dest, value)
         else:
-            value = (self.cpu.get_reg16(dest) + 1) & 0xFFFF
+            old = self.cpu.get_reg16(dest)
+            value = (old + 1) & 0xFFFF
             self.cpu.set_reg16(dest, value)
+        self.cpu.set_flag(FLAG_AF, ((old & 0x0F) + 1) > 0x0F)
         self._update_zf(value, size)
         self._update_sf(value, size)
+        self._update_pf(value)
 
     def _dec_reg(self, dest: str, size: int) -> None:
         if size == 8:
-            value = (self.cpu.get_reg8(dest) - 1) & 0xFF
+            old = self.cpu.get_reg8(dest)
+            value = (old - 1) & 0xFF
             self.cpu.set_reg8(dest, value)
         else:
-            value = (self.cpu.get_reg16(dest) - 1) & 0xFFFF
+            old = self.cpu.get_reg16(dest)
+            value = (old - 1) & 0xFFFF
             self.cpu.set_reg16(dest, value)
+        self.cpu.set_flag(FLAG_AF, (old & 0x0F) == 0x00)
         self._update_zf(value, size)
         self._update_sf(value, size)
+        self._update_pf(value)
 
     def _inc_mem(self, dest: str) -> None:
         size = self._resolve_mem_size(dest)
         if size is None:
             raise NotImplementedError("memory inc requires size")
-        value = (self._read_memory(dest, size) + 1) & self._mask(size)
+        old = self._read_memory(dest, size)
+        value = (old + 1) & self._mask(size)
         self._write_memory(dest, size, value)
+        self.cpu.set_flag(FLAG_AF, ((old & 0x0F) + 1) > 0x0F)
         self._update_zf(value, size)
         self._update_sf(value, size)
+        self._update_pf(value)
 
     def _dec_mem(self, dest: str) -> None:
         size = self._resolve_mem_size(dest)
         if size is None:
             raise NotImplementedError("memory dec requires size")
-        value = (self._read_memory(dest, size) - 1) & self._mask(size)
+        old = self._read_memory(dest, size)
+        value = (old - 1) & self._mask(size)
         self._write_memory(dest, size, value)
+        self.cpu.set_flag(FLAG_AF, (old & 0x0F) == 0x00)
         self._update_zf(value, size)
         self._update_sf(value, size)
+        self._update_pf(value)
 
     def _push16(self, value: int) -> None:
         self.cpu.sp = (self.cpu.sp - 2) & 0xFFFF
@@ -552,22 +794,30 @@ class InstructionExecutor:
         mask = 0x80 if size == 8 else 0x8000
         self.cpu.set_flag(FLAG_SF, (result & mask) != 0)
 
+    def _update_pf(self, result: int) -> None:
+        low = result & 0xFF
+        self.cpu.set_flag(FLAG_PF, (low.bit_count() % 2) == 0)
+
     def _update_add_flags(self, left: int, right: int, result: int, size: int) -> None:
         mask = self._mask(size)
         self.cpu.set_flag(FLAG_CF, result > mask)
         sign_bit = 0x80 if size == 8 else 0x8000
+        self.cpu.set_flag(FLAG_AF, ((left ^ right ^ result) & 0x10) != 0)
         self.cpu.set_flag(
             FLAG_OF,
             (~(left ^ right) & (left ^ result) & sign_bit) != 0,
         )
+        self._update_pf(result)
 
     def _update_sub_flags(self, left: int, right: int, result: int, size: int) -> None:
         self.cpu.set_flag(FLAG_CF, left < right)
         sign_bit = 0x80 if size == 8 else 0x8000
+        self.cpu.set_flag(FLAG_AF, ((left ^ right ^ result) & 0x10) != 0)
         self.cpu.set_flag(
             FLAG_OF,
             ((left ^ right) & (left ^ result) & sign_bit) != 0,
         )
+        self._update_pf(result)
 
     def _resolve_size_hint(self, token: str) -> int | None:
         token = token.strip().lower()
@@ -678,6 +928,7 @@ class InstructionExecutor:
         if not args:
             raise ValueError(f"{op} expects an instruction at line {instr.line}")
         target = args[0].lower()
+        mode = "rep" if op == "rep" else op
         if target == "movsb":
             self._exec_movs(size=8, rep=True)
             return
@@ -695,6 +946,18 @@ class InstructionExecutor:
             return
         if target == "lodsw":
             self._exec_lods(size=16, rep=True)
+            return
+        if target == "cmpsb":
+            self._exec_rep_cmps(size=8, mode=mode)
+            return
+        if target == "cmpsw":
+            self._exec_rep_cmps(size=16, mode=mode)
+            return
+        if target == "scasb":
+            self._exec_rep_scas(size=8, mode=mode)
+            return
+        if target == "scasw":
+            self._exec_rep_scas(size=16, mode=mode)
             return
         raise NotImplementedError(f"Unsupported rep target: {target} at line {instr.line}")
 
@@ -738,9 +1001,11 @@ class InstructionExecutor:
         else:
             result = left ^ right
         self.cpu.set_flag(FLAG_CF, False)
+        self.cpu.set_flag(FLAG_AF, False)
         self.cpu.set_flag(FLAG_OF, False)
         self._update_zf(result, size)
         self._update_sf(result, size)
+        self._update_pf(result)
         return result & self._mask(size)
 
     def _exec_not(self, args, instr) -> None:
@@ -771,18 +1036,22 @@ class InstructionExecutor:
             result = (-value) & 0xFF
             self.cpu.set_reg8(dest, result)
             self.cpu.set_flag(FLAG_CF, value != 0)
+            self.cpu.set_flag(FLAG_AF, (value & 0x0F) != 0)
             self.cpu.set_flag(FLAG_OF, value == 0x80)
             self._update_zf(result, 8)
             self._update_sf(result, 8)
+            self._update_pf(result)
             return
         if dest in self._reg16_names():
             value = self.cpu.get_reg16(dest)
             result = (-value) & 0xFFFF
             self.cpu.set_reg16(dest, result)
             self.cpu.set_flag(FLAG_CF, value != 0)
+            self.cpu.set_flag(FLAG_AF, (value & 0x0F) != 0)
             self.cpu.set_flag(FLAG_OF, value == 0x8000)
             self._update_zf(result, 16)
             self._update_sf(result, 16)
+            self._update_pf(result)
             return
         if self._is_memory(dest):
             size = self._resolve_mem_size(dest)
@@ -792,9 +1061,11 @@ class InstructionExecutor:
             result = (-value) & self._mask(size)
             self._write_memory(dest, size, result)
             self.cpu.set_flag(FLAG_CF, value != 0)
+            self.cpu.set_flag(FLAG_AF, (value & 0x0F) != 0)
             self.cpu.set_flag(FLAG_OF, value == (0x80 if size == 8 else 0x8000))
             self._update_zf(result, size)
             self._update_sf(result, size)
+            self._update_pf(result)
             return
         raise NotImplementedError(f"Unsupported neg dest: {dest} at line {instr.line}")
 
@@ -806,16 +1077,20 @@ class InstructionExecutor:
         if dest in self._reg8_names():
             result = self.cpu.get_reg8(dest) & self._resolve_operand(src, 8)
             self.cpu.set_flag(FLAG_CF, False)
+            self.cpu.set_flag(FLAG_AF, False)
             self.cpu.set_flag(FLAG_OF, False)
             self._update_zf(result, 8)
             self._update_sf(result, 8)
+            self._update_pf(result)
             return
         if dest in self._reg16_names():
             result = self.cpu.get_reg16(dest) & self._resolve_operand(src, 16)
             self.cpu.set_flag(FLAG_CF, False)
+            self.cpu.set_flag(FLAG_AF, False)
             self.cpu.set_flag(FLAG_OF, False)
             self._update_zf(result, 16)
             self._update_sf(result, 16)
+            self._update_pf(result)
             return
         if self._is_memory(dest):
             size = self._resolve_mem_size(dest) or self._resolve_size_hint(src)
@@ -823,9 +1098,11 @@ class InstructionExecutor:
                 raise NotImplementedError("memory test requires size")
             result = self._read_memory(dest, size) & self._resolve_operand(src, size)
             self.cpu.set_flag(FLAG_CF, False)
+            self.cpu.set_flag(FLAG_AF, False)
             self.cpu.set_flag(FLAG_OF, False)
             self._update_zf(result, size)
             self._update_sf(result, size)
+            self._update_pf(result)
             return
         raise NotImplementedError(f"Unsupported test dest: {dest} at line {instr.line}")
 
@@ -876,9 +1153,11 @@ class InstructionExecutor:
                 fill = ((1 << count) - 1) << (size - count)
                 result |= fill
             result &= mask
+        self.cpu.set_flag(FLAG_AF, False)
         self.cpu.set_flag(FLAG_OF, False)
         self._update_zf(result, size)
         self._update_sf(result, size)
+        self._update_pf(result)
         return result
 
     def _exec_rotate(self, args, instr, kind: str) -> None:
@@ -1165,6 +1444,235 @@ class InstructionExecutor:
             self.cpu.si = (self.cpu.si + delta) & 0xFFFF
             if rep:
                 self.cpu.cx = (self.cpu.cx - 1) & 0xFFFF
+
+    def _exec_daa(self, instr) -> None:
+        al = self.cpu.get_reg8("al")
+        adjust = 0
+        cf = self.cpu.get_flag(FLAG_CF)
+        af = self.cpu.get_flag(FLAG_AF)
+        if (al & 0x0F) > 9 or af:
+            adjust |= 0x06
+        if al > 0x99 or cf:
+            adjust |= 0x60
+        result = (al + adjust) & 0xFF
+        self.cpu.set_reg8("al", result)
+        self.cpu.set_flag(FLAG_AF, (adjust & 0x06) != 0)
+        self.cpu.set_flag(FLAG_CF, (adjust & 0x60) != 0)
+        self._update_zf(result, 8)
+        self._update_sf(result, 8)
+        self._update_pf(result)
+
+    def _exec_das(self, instr) -> None:
+        al = self.cpu.get_reg8("al")
+        adjust = 0
+        cf = self.cpu.get_flag(FLAG_CF)
+        af = self.cpu.get_flag(FLAG_AF)
+        if (al & 0x0F) > 9 or af:
+            adjust |= 0x06
+        if al > 0x99 or cf:
+            adjust |= 0x60
+        result = (al - adjust) & 0xFF
+        self.cpu.set_reg8("al", result)
+        self.cpu.set_flag(FLAG_AF, (adjust & 0x06) != 0)
+        self.cpu.set_flag(FLAG_CF, (adjust & 0x60) != 0)
+        self._update_zf(result, 8)
+        self._update_sf(result, 8)
+        self._update_pf(result)
+
+    def _exec_aaa(self, instr) -> None:
+        al = self.cpu.get_reg8("al")
+        ah = self.cpu.get_reg8("ah")
+        if (al & 0x0F) > 9 or self.cpu.get_flag(FLAG_AF):
+            al = (al + 6) & 0xFF
+            ah = (ah + 1) & 0xFF
+            self.cpu.set_flag(FLAG_AF, True)
+            self.cpu.set_flag(FLAG_CF, True)
+        else:
+            self.cpu.set_flag(FLAG_AF, False)
+            self.cpu.set_flag(FLAG_CF, False)
+        al &= 0x0F
+        self.cpu.set_reg8("al", al)
+        self.cpu.set_reg8("ah", ah)
+
+    def _exec_aas(self, instr) -> None:
+        al = self.cpu.get_reg8("al")
+        ah = self.cpu.get_reg8("ah")
+        if (al & 0x0F) > 9 or self.cpu.get_flag(FLAG_AF):
+            al = (al - 6) & 0xFF
+            ah = (ah - 1) & 0xFF
+            self.cpu.set_flag(FLAG_AF, True)
+            self.cpu.set_flag(FLAG_CF, True)
+        else:
+            self.cpu.set_flag(FLAG_AF, False)
+            self.cpu.set_flag(FLAG_CF, False)
+        al &= 0x0F
+        self.cpu.set_reg8("al", al)
+        self.cpu.set_reg8("ah", ah)
+
+    def _exec_aam(self, args, instr) -> None:
+        base = 10
+        if args:
+            base = self._parse_number(args[0], label_ok=True) & 0xFF
+        if base == 0:
+            raise ZeroDivisionError("AAM base cannot be zero")
+        al = self.cpu.get_reg8("al")
+        ah = (al // base) & 0xFF
+        al = (al % base) & 0xFF
+        self.cpu.set_reg8("ah", ah)
+        self.cpu.set_reg8("al", al)
+        self._update_zf(al, 8)
+        self._update_sf(al, 8)
+        self._update_pf(al)
+
+    def _exec_aad(self, args, instr) -> None:
+        base = 10
+        if args:
+            base = self._parse_number(args[0], label_ok=True) & 0xFF
+        al = self.cpu.get_reg8("al")
+        ah = self.cpu.get_reg8("ah")
+        result = (ah * base + al) & 0xFF
+        self.cpu.set_reg8("al", result)
+        self.cpu.set_reg8("ah", 0)
+        self._update_zf(result, 8)
+        self._update_sf(result, 8)
+        self._update_pf(result)
+
+    def _exec_lahf(self, instr) -> None:
+        flags = self.cpu.flags
+        ah = 0
+        if flags & FLAG_SF:
+            ah |= 0x80
+        if flags & FLAG_ZF:
+            ah |= 0x40
+        if flags & FLAG_AF:
+            ah |= 0x10
+        if flags & FLAG_PF:
+            ah |= 0x04
+        ah |= 0x02
+        if flags & FLAG_CF:
+            ah |= 0x01
+        self.cpu.set_reg8("ah", ah)
+
+    def _exec_sahf(self, instr) -> None:
+        ah = self.cpu.get_reg8("ah")
+        self.cpu.set_flag(FLAG_SF, (ah & 0x80) != 0)
+        self.cpu.set_flag(FLAG_ZF, (ah & 0x40) != 0)
+        self.cpu.set_flag(FLAG_AF, (ah & 0x10) != 0)
+        self.cpu.set_flag(FLAG_PF, (ah & 0x04) != 0)
+        self.cpu.set_flag(FLAG_CF, (ah & 0x01) != 0)
+
+    def _exec_cbw(self, instr) -> None:
+        al = self.cpu.get_reg8("al")
+        self.cpu.set_reg16("ax", 0xFF00 | al if al & 0x80 else al)
+
+    def _exec_cwd(self, instr) -> None:
+        ax = self.cpu.get_reg16("ax")
+        self.cpu.set_reg16("dx", 0xFFFF if ax & 0x8000 else 0x0000)
+
+    def _exec_xlat(self, instr) -> None:
+        addr = self.memory.phys(self.cpu.ds, (self.cpu.get_reg16("bx") + self.cpu.get_reg8("al")) & 0xFFFF)
+        self.cpu.set_reg8("al", self.memory.read8(addr))
+
+    def _exec_enter(self, args, instr) -> None:
+        size = self._parse_number(args[0], label_ok=True) & 0xFFFF
+        level = 0
+        if len(args) == 2:
+            level = self._parse_number(args[1], label_ok=True) & 0xFF
+        if level != 0:
+            raise NotImplementedError("enter with nesting level is not supported")
+        self._push16(self.cpu.get_reg16("bp"))
+        self.cpu.set_reg16("bp", self.cpu.get_reg16("sp"))
+        self.cpu.sp = (self.cpu.sp - size) & 0xFFFF
+
+    def _exec_leave(self, instr) -> None:
+        self.cpu.set_reg16("sp", self.cpu.get_reg16("bp"))
+        self.cpu.set_reg16("bp", self._pop16())
+
+    def _exec_int3(self, instr) -> None:
+        self._handle_interrupt(0x03, instr)
+
+    def _exec_iret(self, instr) -> None:
+        ip = self._pop16()
+        cs = self._pop16()
+        flags = self._pop16()
+        self.cpu.set_reg16("cs", cs)
+        self.cpu.flags = flags
+        self._jump_to(ip)
+
+    def _exec_pusha(self, instr) -> None:
+        sp = self.cpu.get_reg16("sp")
+        self._push16(self.cpu.get_reg16("ax"))
+        self._push16(self.cpu.get_reg16("cx"))
+        self._push16(self.cpu.get_reg16("dx"))
+        self._push16(self.cpu.get_reg16("bx"))
+        self._push16(sp)
+        self._push16(self.cpu.get_reg16("bp"))
+        self._push16(self.cpu.get_reg16("si"))
+        self._push16(self.cpu.get_reg16("di"))
+
+    def _exec_popa(self, instr) -> None:
+        self.cpu.set_reg16("di", self._pop16())
+        self.cpu.set_reg16("si", self._pop16())
+        self.cpu.set_reg16("bp", self._pop16())
+        _discard = self._pop16()
+        self.cpu.set_reg16("bx", self._pop16())
+        self.cpu.set_reg16("dx", self._pop16())
+        self.cpu.set_reg16("cx", self._pop16())
+        self.cpu.set_reg16("ax", self._pop16())
+
+    def _exec_cmps(self, size: int) -> None:
+        step = -1 if self.cpu.get_flag(FLAG_DF) else 1
+        left_addr = self.memory.phys(self.cpu.ds, self.cpu.get_reg16("si"))
+        right_addr = self.memory.phys(self.cpu.es, self.cpu.get_reg16("di"))
+        if size == 8:
+            left = self.memory.read8(left_addr)
+            right = self.memory.read8(right_addr)
+            delta = step
+        else:
+            left = self.memory.read16(left_addr)
+            right = self.memory.read16(right_addr)
+            delta = 2 * step
+        result = left - right
+        self._update_sub_flags(left, right, result, size)
+        self._update_zf(result, size)
+        self._update_sf(result, size)
+        self.cpu.si = (self.cpu.si + delta) & 0xFFFF
+        self.cpu.di = (self.cpu.di + delta) & 0xFFFF
+
+    def _exec_scas(self, size: int) -> None:
+        step = -1 if self.cpu.get_flag(FLAG_DF) else 1
+        addr = self.memory.phys(self.cpu.es, self.cpu.get_reg16("di"))
+        if size == 8:
+            left = self.cpu.get_reg8("al")
+            right = self.memory.read8(addr)
+            delta = step
+        else:
+            left = self.cpu.get_reg16("ax")
+            right = self.memory.read16(addr)
+            delta = 2 * step
+        result = left - right
+        self._update_sub_flags(left, right, result, size)
+        self._update_zf(result, size)
+        self._update_sf(result, size)
+        self.cpu.di = (self.cpu.di + delta) & 0xFFFF
+
+    def _exec_rep_cmps(self, size: int, mode: str) -> None:
+        while self.cpu.get_reg16("cx") != 0:
+            self._exec_cmps(size)
+            self.cpu.cx = (self.cpu.cx - 1) & 0xFFFF
+            if mode == "repe" and not self.cpu.get_flag(FLAG_ZF):
+                break
+            if mode == "repne" and self.cpu.get_flag(FLAG_ZF):
+                break
+
+    def _exec_rep_scas(self, size: int, mode: str) -> None:
+        while self.cpu.get_reg16("cx") != 0:
+            self._exec_scas(size)
+            self.cpu.cx = (self.cpu.cx - 1) & 0xFFFF
+            if mode == "repe" and not self.cpu.get_flag(FLAG_ZF):
+                break
+            if mode == "repne" and self.cpu.get_flag(FLAG_ZF):
+                break
 
     def _sign8(self, value: int) -> int:
         return value - 0x100 if value & 0x80 else value
