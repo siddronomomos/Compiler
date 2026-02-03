@@ -87,7 +87,7 @@ class EmulatorUI:
         main.rowconfigure(0, weight=1)
         main.rowconfigure(1, weight=1)
 
-        code_frame = ttk.LabelFrame(main, text="Code")
+        code_frame = ttk.LabelFrame(main, text="Codigo")
         code_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 8), pady=(0, 8))
         code_frame.rowconfigure(0, weight=1)
         code_frame.columnconfigure(1, weight=1)
@@ -106,7 +106,7 @@ class EmulatorUI:
         self.code_text.bind("<MouseWheel>", lambda _event: self._refresh_gutter())
         self.code_gutter.bind("<Button-1>", self._toggle_breakpoint_gutter)
 
-        output_frame = ttk.LabelFrame(main, text="Output")
+        output_frame = ttk.LabelFrame(main, text="Salida")
         output_frame.grid(row=1, column=0, sticky="nsew", padx=(0, 8))
         output_frame.rowconfigure(0, weight=1)
         output_frame.columnconfigure(0, weight=1)
@@ -118,18 +118,18 @@ class EmulatorUI:
         side.grid(row=0, column=1, rowspan=2, sticky="nsew")
         side.rowconfigure(2, weight=1)
 
-        controls = ttk.LabelFrame(side, text="Controls")
+        controls = ttk.LabelFrame(side, text="Controles")
         controls.grid(row=0, column=0, sticky="nsew", pady=(0, 8))
 
         btn_frame = ttk.Frame(controls)
         btn_frame.pack(fill="x", padx=8, pady=8)
 
-        ttk.Button(btn_frame, text="Load", command=self._load_program).pack(fill="x", pady=2)
-        ttk.Button(btn_frame, text="Run", command=self._run_program).pack(fill="x", pady=2)
-        ttk.Button(btn_frame, text="Step", command=self._step_program).pack(fill="x", pady=2)
-        ttk.Button(btn_frame, text="Clear Output", command=self._clear_output).pack(fill="x", pady=2)
+        ttk.Button(btn_frame, text="Cargar", command=self._load_program).pack(fill="x", pady=2)
+        ttk.Button(btn_frame, text="Correr", command=self._run_program).pack(fill="x", pady=2)
+        ttk.Button(btn_frame, text="Paso", command=self._step_program).pack(fill="x", pady=2)
+        ttk.Button(btn_frame, text="Limpiar Salida", command=self._clear_output).pack(fill="x", pady=2)
 
-        bp_frame = ttk.LabelFrame(side, text="Breakpoints")
+        bp_frame = ttk.LabelFrame(side, text="Puntos de Interrupción")
         bp_frame.grid(row=1, column=0, sticky="nsew", pady=(0, 8))
 
         self.bp_entry = ttk.Entry(bp_frame)
@@ -137,13 +137,13 @@ class EmulatorUI:
 
         bp_btns = ttk.Frame(bp_frame)
         bp_btns.pack(fill="x", padx=8, pady=(0, 8))
-        ttk.Button(bp_btns, text="Add", command=self._add_breakpoint).pack(side="left", expand=True, fill="x", padx=(0, 4))
-        ttk.Button(bp_btns, text="Clear", command=self._clear_breakpoints).pack(side="left", expand=True, fill="x")
+        ttk.Button(bp_btns, text="Añadir", command=self._add_breakpoint).pack(side="left", expand=True, fill="x", padx=(0, 4))
+        ttk.Button(bp_btns, text="Limpiar", command=self._clear_breakpoints).pack(side="left", expand=True, fill="x")
 
         self.bp_list = tk.Listbox(bp_frame, height=6)
         self.bp_list.pack(fill="both", expand=True, padx=8, pady=(0, 8))
 
-        regs_frame = ttk.LabelFrame(side, text="Registers")
+        regs_frame = ttk.LabelFrame(side, text="Registros")
         regs_frame.grid(row=2, column=0, sticky="nsew", pady=(0, 8))
         regs_frame.columnconfigure(1, weight=1)
         regs_frame.columnconfigure(2, weight=1)
@@ -173,13 +173,12 @@ class EmulatorUI:
         current_label = ttk.Label(regs_frame, textvariable=self.current_var, anchor="w")
         current_label.grid(row=15, column=0, columnspan=3, sticky="w", padx=8, pady=(2, 6))
 
-        view_frame = ttk.LabelFrame(side, text="Viewers")
+        view_frame = ttk.LabelFrame(side, text="Visores")
         view_frame.grid(row=3, column=0, sticky="nsew", pady=(0, 8))
         view_frame.columnconfigure(0, weight=1)
-        ttk.Button(view_frame, text="Open Memory Viewer", command=self._open_memory_viewer).pack(fill="x", padx=8, pady=(8, 4))
-        ttk.Button(view_frame, text="Open Stack Viewer", command=self._open_stack_viewer).pack(fill="x", padx=8, pady=(0, 8))
-
-        self.status_var = tk.StringVar(value="Ready")
+        ttk.Button(view_frame, text="Abrir Visor de Memoria", command=self._open_memory_viewer).pack(fill="x", padx=8, pady=(8, 4))
+        ttk.Button(view_frame, text="Abrir Visor de Pila", command=self._open_stack_viewer).pack(fill="x", padx=8, pady=(0, 8))
+        self.status_var = tk.StringVar(value="Listo")
         status = ttk.Label(side, textvariable=self.status_var, anchor="w")
         status.grid(row=4, column=0, sticky="ew", pady=(8, 0))
 
