@@ -1,7 +1,7 @@
 .data
-bios_msg db 'BIOS teletype output $'
-kb_msg db 'Press a key $'
-time_msg db 'Current time BCD HH MM SS $'
+bios_msg db 'Salida de teletipo BIOS $'
+kb_msg db 'Presione una tecla $'
+time_msg db 'Hora actual BCD HH MM SS $'
 hex_digits db '0123456789ABCDEF'
 
 .code

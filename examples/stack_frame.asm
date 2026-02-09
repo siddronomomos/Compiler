@@ -1,6 +1,6 @@
 .stack 64
 .data
-msg db 'Stack frame demo $'
+msg db 'Demostración de marco de pila $'
 hex_digits db '0123456789ABCDEF'
 
 .code

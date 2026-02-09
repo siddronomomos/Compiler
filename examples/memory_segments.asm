@@ -1,5 +1,5 @@
 .data
-msg db 'Segment override demo $'
+msg db 'Demostración de sobrescritura de segmento $'
 hex_digits db '0123456789ABCDEF'
 val db 0
 

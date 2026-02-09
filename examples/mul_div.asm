@@ -1,6 +1,6 @@
 .data
-msg_mul db 'MUL and IMUL results $'
-msg_div db 'DIV and IDIV results $'
+msg_mul db 'Resultados de MUL e IMUL $'
+msg_div db 'Resultados de DIV e IDIV $'
 hex_digits db '0123456789ABCDEF'
 
 .code

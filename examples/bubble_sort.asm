@@ -2,8 +2,8 @@
 arr_len equ 8
 arr db 5,3,9,1,4,2,8,6
 
-msg_before db 'Before: $'
-msg_after  db 'After : $'
+msg_before db 'Antes: $'
+msg_after  db 'Después: $'
 hex_digits db '0123456789ABCDEF'
 
 .code
@@ -29,14 +29,14 @@ start:
     mov ax, 4C00h
     int 21h
 
-; Bubble sort over the byte array at `arr`
+; Ordenamiento burbuja sobre el arreglo de bytes en `arr`
 bubble_sort:
     mov cx, arr_len
-    dec cx              ; number of outer passes (len - 1)
-    jz bs_done          ; arrays of length 1 are already sorted
+    dec cx              ; número de pasadas externas (len - 1)
+    jz bs_done          ; los arreglos de longitud 1 ya están ordenados
 bs_outer:
     mov si, offset arr
-    mov dx, cx          ; inner loop runs `cx` comparisons
+    mov dx, cx          ; el bucle interno realiza `cx` comparaciones
 bs_inner:
     mov al, [si]
     mov ah, [si+1]
@@ -53,7 +53,7 @@ bs_no_swap:
 bs_done:
     ret
 
-; Prints CX bytes starting at DS:SI as two-digit hex values
+; Imprime CX bytes desde DS:SI como valores hex de dos dígitos
 print_array:
     push ax
     push bx
@@ -81,7 +81,7 @@ pa_loop:
     pop ax
     ret
 
-; Prints AL as two hex characters using `hex_digits`
+; Imprime AL como dos caracteres hex usando `hex_digits`
 print_byte_hex:
     push ax
     push bx

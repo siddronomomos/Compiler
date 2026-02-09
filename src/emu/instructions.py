@@ -99,8 +99,8 @@ SUPPORTED_OPS: tuple[str, ...] = (
 
 def validate_opcode(op: str, line: int | None = None) -> None:
     if op not in SUPPORTED_OPS:
-        detail = f" at line {line}" if line is not None else ""
-        raise NotImplementedError(f"Unsupported op: {op}{detail}")
+        detail = f" en la línea {line}" if line is not None else ""
+        raise NotImplementedError(f"Operación no soportada: {op}{detail}")
 
 
 class InstructionExecutor:
@@ -121,7 +121,7 @@ class InstructionExecutor:
         self._validate_operands(op, args, instr)
         handler = self._dispatch.get(op)
         if handler is None:
-            raise NotImplementedError(f"Unsupported op: {op} at line {instr.line}")
+            raise NotImplementedError(f"Operación no soportada: {op} en la línea {instr.line}")
         handler(op, args, instr)
         self.cpu.ip += 1
 
@@ -215,35 +215,35 @@ class InstructionExecutor:
             "xchg",
         }
         if op in zero_ops and args:
-            raise ValueError(f"{op} expects no operands at line {instr.line}")
+            raise ValueError(f"{op} no espera operandos en la línea {instr.line}")
         if op in one_ops and len(args) != 1:
-            raise ValueError(f"{op} expects 1 operand at line {instr.line}")
+            raise ValueError(f"{op} espera 1 operando en la línea {instr.line}")
         if op in two_ops and len(args) != 2:
-            raise ValueError(f"{op} expects 2 operands at line {instr.line}")
+            raise ValueError(f"{op} espera 2 operandos en la línea {instr.line}")
         if op in {"aam", "aad"} and len(args) > 1:
-            raise ValueError(f"{op} expects 0 or 1 operand at line {instr.line}")
+            raise ValueError(f"{op} espera 0 o 1 operando en la línea {instr.line}")
         if op in {"aam", "aad"} and len(args) == 1:
             try:
                 value = self._parse_number(args[0], label_ok=True)
             except Exception as exc:
-                raise ValueError(f"{op} expects an immediate byte at line {instr.line}") from exc
+                raise ValueError(f"{op} espera un byte inmediato en la línea {instr.line}") from exc
             if value & 0xFF != value:
-                raise ValueError(f"{op} expects an immediate byte at line {instr.line}")
+                raise ValueError(f"{op} espera un byte inmediato en la línea {instr.line}")
         if op == "enter":
             if len(args) not in {1, 2}:
-                raise ValueError(f"enter expects 1 or 2 operands at line {instr.line}")
+                raise ValueError(f"enter espera 1 o 2 operandos en la línea {instr.line}")
             size = self._parse_number(args[0], label_ok=True)
             if size & 0xFFFF != size:
-                raise ValueError(f"enter expects a 16-bit size at line {instr.line}")
+                raise ValueError(f"enter espera un tamaño de 16 bits en la línea {instr.line}")
             if len(args) == 2:
                 level = self._parse_number(args[1], label_ok=True)
                 if level & 0xFF != level:
-                    raise ValueError(f"enter expects an 8-bit nesting level at line {instr.line}")
+                    raise ValueError(f"enter espera un nivel de anidamiento de 8 bits en la línea {instr.line}")
         if op in {"rep", "repe", "repne"}:
             target = args[0].lower()
             valid_targets = {"movsb", "movsw", "stosb", "stosw", "lodsb", "lodsw", "cmpsb", "cmpsw", "scasb", "scasw"}
             if target not in valid_targets:
-                raise ValueError(f"{op} expects a string instruction at line {instr.line}")
+                raise ValueError(f"{op} espera una instrucción de cadena en la línea {instr.line}")
 
     def _build_dispatch(self) -> dict[str, Callable[[str, list[str], Instruction], None]]:
         return {
@@ -336,7 +336,7 @@ class InstructionExecutor:
 
     def _exec_mov(self, args, instr) -> None:
         if len(args) != 2:
-            raise ValueError(f"mov expects 2 operands at line {instr.line}")
+            raise ValueError(f"mov espera 2 operandos en la línea {instr.line}")
         dest = args[0].lower()
         src = args[1].lower()
 
@@ -351,25 +351,25 @@ class InstructionExecutor:
         if self._is_memory(dest):
             size = self._resolve_mem_size(dest) or self._resolve_size_hint(src)
             if size is None:
-                raise NotImplementedError(f"mov to memory requires size at line {instr.line}")
+                raise NotImplementedError(f"mov a memoria requiere tamaño en la línea {instr.line}")
             value = self._resolve_operand(src, size=size)
             self._write_memory(dest, size, value)
             return
-        raise NotImplementedError(f"Unsupported mov dest: {dest} at line {instr.line}")
+        raise NotImplementedError(f"Destino de mov no soportado: {dest} en la línea {instr.line}")
 
     def _exec_lea(self, args, instr) -> None:
         if len(args) != 2:
-            raise ValueError(f"lea expects 2 operands at line {instr.line}")
+            raise ValueError(f"lea espera 2 operandos en la línea {instr.line}")
         dest = args[0].lower()
         label = args[1].lower()
         if dest not in self._reg16_names():
-            raise NotImplementedError(f"lea dest must be 16-bit register at line {instr.line}")
+            raise NotImplementedError(f"El destino de lea debe ser un registro de 16 bits en la línea {instr.line}")
         offset = self._resolve_label(label)
         self.cpu.set_reg16(dest, offset)
 
     def _exec_add(self, args, instr) -> None:
         if len(args) != 2:
-            raise ValueError(f"add expects 2 operands at line {instr.line}")
+            raise ValueError(f"add espera 2 operandos en la línea {instr.line}")
         dest = args[0].lower()
         src = args[1].lower()
         if dest in self._reg8_names():
@@ -381,11 +381,11 @@ class InstructionExecutor:
         if self._is_memory(dest):
             self._arith_mem(dest, src, op="add")
             return
-        raise NotImplementedError(f"Unsupported add dest: {dest} at line {instr.line}")
+        raise NotImplementedError(f"Destino de add no soportado: {dest} en la línea {instr.line}")
 
     def _exec_adc(self, args, instr) -> None:
         if len(args) != 2:
-            raise ValueError(f"adc expects 2 operands at line {instr.line}")
+            raise ValueError(f"adc espera 2 operandos en la línea {instr.line}")
         dest = args[0].lower()
         src = args[1].lower()
         carry = 1 if self.cpu.get_flag(FLAG_CF) else 0
@@ -412,7 +412,7 @@ class InstructionExecutor:
         if self._is_memory(dest):
             size = self._resolve_mem_size(dest) or self._resolve_size_hint(src)
             if size is None:
-                raise NotImplementedError("memory adc requires size")
+                raise NotImplementedError("adc en memoria requiere tamaño")
             left = self._read_memory(dest, size)
             right = self._resolve_operand(src, size=size)
             right_carry = (right + carry) & self._mask(size)
@@ -422,11 +422,11 @@ class InstructionExecutor:
             self._update_sf(result, size)
             self._write_memory(dest, size, result)
             return
-        raise NotImplementedError(f"Unsupported adc dest: {dest} at line {instr.line}")
+        raise NotImplementedError(f"Destino de adc no soportado: {dest} en la línea {instr.line}")
 
     def _exec_sub(self, args, instr) -> None:
         if len(args) != 2:
-            raise ValueError(f"sub expects 2 operands at line {instr.line}")
+            raise ValueError(f"sub espera 2 operandos en la línea {instr.line}")
         dest = args[0].lower()
         src = args[1].lower()
         if dest in self._reg8_names():
@@ -438,11 +438,11 @@ class InstructionExecutor:
         if self._is_memory(dest):
             self._arith_mem(dest, src, op="sub")
             return
-        raise NotImplementedError(f"Unsupported sub dest: {dest} at line {instr.line}")
+        raise NotImplementedError(f"Destino de sub no soportado: {dest} en la línea {instr.line}")
 
     def _exec_sbb(self, args, instr) -> None:
         if len(args) != 2:
-            raise ValueError(f"sbb expects 2 operands at line {instr.line}")
+            raise ValueError(f"sbb espera 2 operandos en la línea {instr.line}")
         dest = args[0].lower()
         src = args[1].lower()
         borrow = 1 if self.cpu.get_flag(FLAG_CF) else 0
@@ -469,7 +469,7 @@ class InstructionExecutor:
         if self._is_memory(dest):
             size = self._resolve_mem_size(dest) or self._resolve_size_hint(src)
             if size is None:
-                raise NotImplementedError("memory sbb requires size")
+                raise NotImplementedError("sbb en memoria requiere tamaño")
             left = self._read_memory(dest, size)
             right = self._resolve_operand(src, size=size)
             right_borrow = (right + borrow) & self._mask(size)
@@ -479,11 +479,11 @@ class InstructionExecutor:
             self._update_sf(result, size)
             self._write_memory(dest, size, result)
             return
-        raise NotImplementedError(f"Unsupported sbb dest: {dest} at line {instr.line}")
+        raise NotImplementedError(f"Destino de sbb no soportado: {dest} en la línea {instr.line}")
 
     def _exec_cmp(self, args, instr) -> None:
         if len(args) != 2:
-            raise ValueError(f"cmp expects 2 operands at line {instr.line}")
+            raise ValueError(f"cmp espera 2 operandos en la línea {instr.line}")
         dest = args[0].lower()
         src = args[1].lower()
         if dest in self._reg8_names():
@@ -495,11 +495,11 @@ class InstructionExecutor:
         if self._is_memory(dest):
             self._cmp_mem(dest, src)
             return
-        raise NotImplementedError(f"Unsupported cmp dest: {dest} at line {instr.line}")
+        raise NotImplementedError(f"Destino de cmp no soportado: {dest} en la línea {instr.line}")
 
     def _exec_inc(self, args, instr) -> None:
         if len(args) != 1:
-            raise ValueError(f"inc expects 1 operand at line {instr.line}")
+            raise ValueError(f"inc espera 1 operando en la línea {instr.line}")
         dest = args[0].lower()
         if dest in self._reg8_names():
             self._inc_reg(dest, 8)
@@ -510,11 +510,11 @@ class InstructionExecutor:
         if self._is_memory(dest):
             self._inc_mem(dest)
             return
-        raise NotImplementedError(f"Unsupported inc dest: {dest} at line {instr.line}")
+        raise NotImplementedError(f"Destino de inc no soportado: {dest} en la línea {instr.line}")
 
     def _exec_dec(self, args, instr) -> None:
         if len(args) != 1:
-            raise ValueError(f"dec expects 1 operand at line {instr.line}")
+            raise ValueError(f"dec espera 1 operando en la línea {instr.line}")
         dest = args[0].lower()
         if dest in self._reg8_names():
             self._dec_reg(dest, 8)
@@ -525,38 +525,38 @@ class InstructionExecutor:
         if self._is_memory(dest):
             self._dec_mem(dest)
             return
-        raise NotImplementedError(f"Unsupported dec dest: {dest} at line {instr.line}")
+        raise NotImplementedError(f"Destino de dec no soportado: {dest} en la línea {instr.line}")
 
     def _exec_jmp(self, args, instr) -> None:
         if len(args) != 1:
-            raise ValueError(f"jmp expects 1 operand at line {instr.line}")
+            raise ValueError(f"jmp espera 1 operando en la línea {instr.line}")
         target = self._resolve_jump_target(args[0])
         self._jump_to(target)
 
     def _exec_je(self, args, instr) -> None:
         if len(args) != 1:
-            raise ValueError(f"je expects 1 operand at line {instr.line}")
+            raise ValueError(f"je espera 1 operando en la línea {instr.line}")
         if self.cpu.get_flag(FLAG_ZF):
             target = self._resolve_jump_target(args[0])
             self._jump_to(target)
 
     def _exec_jne(self, args, instr) -> None:
         if len(args) != 1:
-            raise ValueError(f"jne expects 1 operand at line {instr.line}")
+            raise ValueError(f"jne espera 1 operando en la línea {instr.line}")
         if not self.cpu.get_flag(FLAG_ZF):
             target = self._resolve_jump_target(args[0])
             self._jump_to(target)
 
     def _exec_call(self, args, instr) -> None:
         if len(args) != 1:
-            raise ValueError(f"call expects 1 operand at line {instr.line}")
+            raise ValueError(f"call espera 1 operando en la línea {instr.line}")
         target = self._resolve_jump_target(args[0])
         self._push16(self.cpu.ip + 1)
         self._jump_to(target)
 
     def _exec_ret(self, args, instr) -> None:
         if args:
-            raise ValueError(f"ret expects no operands at line {instr.line}")
+            raise ValueError(f"ret no espera operandos en la línea {instr.line}")
         if self.cpu.sp == 0xFFFE:
             self.cpu.halted = True
             return
@@ -565,13 +565,13 @@ class InstructionExecutor:
 
     def _exec_push(self, args, instr) -> None:
         if len(args) != 1:
-            raise ValueError(f"push expects 1 operand at line {instr.line}")
+            raise ValueError(f"push espera 1 operando en la línea {instr.line}")
         value = self._resolve_operand(args[0].lower(), size=16)
         self._push16(value)
 
     def _exec_pop(self, args, instr) -> None:
         if len(args) != 1:
-            raise ValueError(f"pop expects 1 operand at line {instr.line}")
+            raise ValueError(f"pop espera 1 operando en la línea {instr.line}")
         dest = args[0].lower()
         value = self._pop16()
         if dest in self._reg16_names():
@@ -580,11 +580,11 @@ class InstructionExecutor:
         if self._is_memory(dest):
             self._write_memory(dest, 16, value)
             return
-        raise NotImplementedError(f"Unsupported pop dest: {dest} at line {instr.line}")
+        raise NotImplementedError(f"Destino de pop no soportado: {dest} en la línea {instr.line}")
 
     def _exec_int(self, args, instr) -> None:
         if len(args) != 1:
-            raise ValueError(f"int expects 1 operand at line {instr.line}")
+            raise ValueError(f"int espera 1 operando en la línea {instr.line}")
         vector = self._parse_number(args[0])
         self._handle_interrupt(vector, instr)
 
@@ -607,7 +607,7 @@ class InstructionExecutor:
         if vector == 0x03:
             self.cpu.halted = True
             return
-        raise NotImplementedError(f"Unsupported interrupt: {vector:#x} at line {instr.line}")
+        raise NotImplementedError(f"Interrupción no soportada: {vector:#x} en la línea {instr.line}")
 
     def _resolve_operand(self, token: str, size: int) -> int:
         token = token.strip().lower()
@@ -624,13 +624,13 @@ class InstructionExecutor:
 
     def _resolve_label(self, label: str) -> int:
         if self.program is None:
-            raise RuntimeError("No program loaded")
+            raise RuntimeError("No hay ningún programa cargado")
         label = label.lower()
         if label in self.program.data_labels:
             return self.program.data_labels[label]
         if label in self.program.labels:
             return self.program.labels[label]
-        raise KeyError(f"Unknown label: {label}")
+        raise KeyError(f"Etiqueta desconocida: {label}")
 
     def _parse_number(self, token: str, label_ok: bool = False) -> int:
         token = token.strip().lower()
@@ -677,7 +677,7 @@ class InstructionExecutor:
     def _arith_mem(self, dest: str, src: str, op: str) -> None:
         size = self._resolve_mem_size(dest) or self._resolve_size_hint(src)
         if size is None:
-            raise NotImplementedError("memory arithmetic requires size")
+            raise NotImplementedError("la aritmética en memoria requiere tamaño")
         left = self._read_memory(dest, size)
         right = self._resolve_operand(src, size=size)
         if op == "add":
@@ -704,7 +704,7 @@ class InstructionExecutor:
     def _cmp_mem(self, dest: str, src: str) -> None:
         size = self._resolve_mem_size(dest) or self._resolve_size_hint(src)
         if size is None:
-            raise NotImplementedError("memory cmp requires size")
+            raise NotImplementedError("cmp en memoria requiere tamaño")
         left = self._read_memory(dest, size)
         right = self._resolve_operand(src, size=size)
         result = left - right
@@ -743,7 +743,7 @@ class InstructionExecutor:
     def _inc_mem(self, dest: str) -> None:
         size = self._resolve_mem_size(dest)
         if size is None:
-            raise NotImplementedError("memory inc requires size")
+            raise NotImplementedError("inc en memoria requiere tamaño")
         old = self._read_memory(dest, size)
         value = (old + 1) & self._mask(size)
         self._write_memory(dest, size, value)
@@ -755,7 +755,7 @@ class InstructionExecutor:
     def _dec_mem(self, dest: str) -> None:
         size = self._resolve_mem_size(dest)
         if size is None:
-            raise NotImplementedError("memory dec requires size")
+            raise NotImplementedError("dec en memoria requiere tamaño")
         old = self._read_memory(dest, size)
         value = (old - 1) & self._mask(size)
         self._write_memory(dest, size, value)
@@ -874,10 +874,10 @@ class InstructionExecutor:
         start = token.find("[")
         end = token.rfind("]")
         if start == -1 or end == -1 or end <= start:
-            raise ValueError(f"Invalid memory operand: {token}")
+            raise ValueError(f"Operando de memoria inválido: {token}")
         expr = token[start + 1 : end].strip().lower()
         if not expr:
-            raise ValueError(f"Empty memory operand: {token}")
+            raise ValueError(f"Operando de memoria vacío: {token}")
         use_ss = False
         offset = 0
         expr = expr.replace("-", "+-")
@@ -910,7 +910,7 @@ class InstructionExecutor:
 
     def _decode_char_literal(self, token: str) -> int:
         if len(token) < 3:
-            raise ValueError(f"Invalid char literal: {token}")
+            raise ValueError(f"Literal de carácter inválido: {token}")
         inner = token[1:-1]
         if inner.startswith("\\") and len(inner) >= 2:
             mapping = {
@@ -926,7 +926,7 @@ class InstructionExecutor:
 
     def _exec_rep(self, op: str, args, instr) -> None:
         if not args:
-            raise ValueError(f"{op} expects an instruction at line {instr.line}")
+            raise ValueError(f"{op} espera una instrucción en la línea {instr.line}")
         target = args[0].lower()
         mode = "rep" if op == "rep" else op
         if target == "movsb":
@@ -959,7 +959,7 @@ class InstructionExecutor:
         if target == "scasw":
             self._exec_rep_scas(size=16, mode=mode)
             return
-        raise NotImplementedError(f"Unsupported rep target: {target} at line {instr.line}")
+        raise NotImplementedError(f"Objetivo de rep no soportado: {target} en la línea {instr.line}")
 
     def _exec_and(self, args, instr) -> None:
         self._exec_logic(args, instr, op="and")
@@ -972,7 +972,7 @@ class InstructionExecutor:
 
     def _exec_logic(self, args, instr, op: str) -> None:
         if len(args) != 2:
-            raise ValueError(f"{op} expects 2 operands at line {instr.line}")
+            raise ValueError(f"{op} espera 2 operandos en la línea {instr.line}")
         dest = args[0].lower()
         src = args[1].lower()
         if dest in self._reg8_names():
@@ -986,12 +986,12 @@ class InstructionExecutor:
         if self._is_memory(dest):
             size = self._resolve_mem_size(dest) or self._resolve_size_hint(src)
             if size is None:
-                raise NotImplementedError("memory logic requires size")
+                raise NotImplementedError("la lógica en memoria requiere tamaño")
             left = self._read_memory(dest, size)
             result = self._logic_compute(left, self._resolve_operand(src, size), op, size)
             self._write_memory(dest, size, result)
             return
-        raise NotImplementedError(f"Unsupported {op} dest: {dest} at line {instr.line}")
+        raise NotImplementedError(f"Destino de {op} no soportado: {dest} en la línea {instr.line}")
 
     def _logic_compute(self, left: int, right: int, op: str, size: int) -> int:
         if op == "and":
@@ -1010,7 +1010,7 @@ class InstructionExecutor:
 
     def _exec_not(self, args, instr) -> None:
         if len(args) != 1:
-            raise ValueError(f"not expects 1 operand at line {instr.line}")
+            raise ValueError(f"not espera 1 operando en la línea {instr.line}")
         dest = args[0].lower()
         if dest in self._reg8_names():
             self.cpu.set_reg8(dest, (~self.cpu.get_reg8(dest)) & 0xFF)
@@ -1021,15 +1021,15 @@ class InstructionExecutor:
         if self._is_memory(dest):
             size = self._resolve_mem_size(dest)
             if size is None:
-                raise NotImplementedError("memory not requires size")
+                raise NotImplementedError("not en memoria requiere tamaño")
             value = self._read_memory(dest, size)
             self._write_memory(dest, size, (~value) & self._mask(size))
             return
-        raise NotImplementedError(f"Unsupported not dest: {dest} at line {instr.line}")
+        raise NotImplementedError(f"Destino de not no soportado: {dest} en la línea {instr.line}")
 
     def _exec_neg(self, args, instr) -> None:
         if len(args) != 1:
-            raise ValueError(f"neg expects 1 operand at line {instr.line}")
+            raise ValueError(f"neg espera 1 operando en la línea {instr.line}")
         dest = args[0].lower()
         if dest in self._reg8_names():
             value = self.cpu.get_reg8(dest)
@@ -1056,7 +1056,7 @@ class InstructionExecutor:
         if self._is_memory(dest):
             size = self._resolve_mem_size(dest)
             if size is None:
-                raise NotImplementedError("memory neg requires size")
+                raise NotImplementedError("neg en memoria requiere tamaño")
             value = self._read_memory(dest, size)
             result = (-value) & self._mask(size)
             self._write_memory(dest, size, result)
@@ -1067,11 +1067,11 @@ class InstructionExecutor:
             self._update_sf(result, size)
             self._update_pf(result)
             return
-        raise NotImplementedError(f"Unsupported neg dest: {dest} at line {instr.line}")
+        raise NotImplementedError(f"Destino de neg no soportado: {dest} en la línea {instr.line}")
 
     def _exec_test(self, args, instr) -> None:
         if len(args) != 2:
-            raise ValueError(f"test expects 2 operands at line {instr.line}")
+            raise ValueError(f"test espera 2 operandos en la línea {instr.line}")
         dest = args[0].lower()
         src = args[1].lower()
         if dest in self._reg8_names():
@@ -1095,7 +1095,7 @@ class InstructionExecutor:
         if self._is_memory(dest):
             size = self._resolve_mem_size(dest) or self._resolve_size_hint(src)
             if size is None:
-                raise NotImplementedError("memory test requires size")
+                raise NotImplementedError("test en memoria requiere tamaño")
             result = self._read_memory(dest, size) & self._resolve_operand(src, size)
             self.cpu.set_flag(FLAG_CF, False)
             self.cpu.set_flag(FLAG_AF, False)
@@ -1104,11 +1104,11 @@ class InstructionExecutor:
             self._update_sf(result, size)
             self._update_pf(result)
             return
-        raise NotImplementedError(f"Unsupported test dest: {dest} at line {instr.line}")
+        raise NotImplementedError(f"Destino de test no soportado: {dest} en la línea {instr.line}")
 
     def _exec_shift(self, args, instr, kind: str) -> None:
         if len(args) != 2:
-            raise ValueError(f"{kind} expects 2 operands at line {instr.line}")
+            raise ValueError(f"{kind} espera 2 operandos en la línea {instr.line}")
         dest = args[0].lower()
         count = self._resolve_shift_count(args[1].lower())
         if count == 0:
@@ -1126,12 +1126,12 @@ class InstructionExecutor:
         if self._is_memory(dest):
             size = self._resolve_mem_size(dest)
             if size is None:
-                raise NotImplementedError("memory shift requires size")
+                raise NotImplementedError("el desplazamiento en memoria requiere tamaño")
             value = self._read_memory(dest, size)
             result = self._shift_value(value, count, size, kind)
             self._write_memory(dest, size, result)
             return
-        raise NotImplementedError(f"Unsupported {kind} dest: {dest} at line {instr.line}")
+        raise NotImplementedError(f"Destino de {kind} no soportado: {dest} en la línea {instr.line}")
 
     def _shift_value(self, value: int, count: int, size: int, kind: str) -> int:
         mask = self._mask(size)
@@ -1162,7 +1162,7 @@ class InstructionExecutor:
 
     def _exec_rotate(self, args, instr, kind: str) -> None:
         if len(args) != 2:
-            raise ValueError(f"{kind} expects 2 operands at line {instr.line}")
+            raise ValueError(f"{kind} espera 2 operandos en la línea {instr.line}")
         dest = args[0].lower()
         count = self._resolve_shift_count(args[1].lower())
         if count == 0:
@@ -1180,12 +1180,12 @@ class InstructionExecutor:
         if self._is_memory(dest):
             size = self._resolve_mem_size(dest)
             if size is None:
-                raise NotImplementedError("memory rotate requires size")
+                raise NotImplementedError("la rotación en memoria requiere tamaño")
             value = self._read_memory(dest, size)
             result = self._rotate_value(value, count, size, kind)
             self._write_memory(dest, size, result)
             return
-        raise NotImplementedError(f"Unsupported {kind} dest: {dest} at line {instr.line}")
+        raise NotImplementedError(f"Destino de {kind} no soportado: {dest} en la línea {instr.line}")
 
     def _rotate_value(self, value: int, count: int, size: int, kind: str) -> int:
         mask = self._mask(size)
@@ -1207,7 +1207,7 @@ class InstructionExecutor:
 
     def _exec_mul(self, args, instr, signed: bool) -> None:
         if len(args) != 1:
-            raise ValueError(f"mul expects 1 operand at line {instr.line}")
+            raise ValueError(f"mul espera 1 operando en la línea {instr.line}")
         op = args[0].lower()
         size = self._resolve_size_hint(op) or self._resolve_mem_size(op)
         if op in self._reg8_names():
@@ -1215,7 +1215,7 @@ class InstructionExecutor:
         elif op in self._reg16_names():
             size = 16
         if size is None:
-            raise NotImplementedError("mul requires operand size")
+            raise NotImplementedError("mul requiere tamaño de operando")
         if size == 8:
             left = self.cpu.get_reg8("al")
             right = self._resolve_operand(op, 8)
@@ -1250,7 +1250,7 @@ class InstructionExecutor:
 
     def _exec_div(self, args, instr, signed: bool) -> None:
         if len(args) != 1:
-            raise ValueError(f"div expects 1 operand at line {instr.line}")
+            raise ValueError(f"div espera 1 operando en la línea {instr.line}")
         op = args[0].lower()
         size = self._resolve_size_hint(op) or self._resolve_mem_size(op)
         if op in self._reg8_names():
@@ -1258,11 +1258,11 @@ class InstructionExecutor:
         elif op in self._reg16_names():
             size = 16
         if size is None:
-            raise NotImplementedError("div requires operand size")
+            raise NotImplementedError("div requiere tamaño de operando")
         if size == 8:
             divisor = self._resolve_operand(op, 8)
             if divisor == 0:
-                raise ZeroDivisionError("Division by zero")
+                raise ZeroDivisionError("División por cero")
             dividend = self.cpu.get_reg16("ax")
             if signed:
                 quotient = int(self._sign16(dividend) / self._sign8(divisor))
@@ -1271,13 +1271,13 @@ class InstructionExecutor:
                 quotient = dividend // divisor
                 remainder = dividend % divisor
             if quotient < -128 or quotient > 255:
-                raise OverflowError("Division overflow")
+                raise OverflowError("Desbordamiento de división")
             self.cpu.set_reg8("al", quotient & 0xFF)
             self.cpu.set_reg8("ah", remainder & 0xFF)
         else:
             divisor = self._resolve_operand(op, 16)
             if divisor == 0:
-                raise ZeroDivisionError("Division by zero")
+                raise ZeroDivisionError("División por cero")
             dividend = (self.cpu.get_reg16("dx") << 16) | self.cpu.get_reg16("ax")
             if signed:
                 quotient = int(self._sign32(dividend) / self._sign16(divisor))
@@ -1286,49 +1286,49 @@ class InstructionExecutor:
                 quotient = dividend // divisor
                 remainder = dividend % divisor
             if quotient < -32768 or quotient > 0xFFFF:
-                raise OverflowError("Division overflow")
+                raise OverflowError("Desbordamiento de división")
             self.cpu.set_reg16("ax", quotient & 0xFFFF)
             self.cpu.set_reg16("dx", remainder & 0xFFFF)
 
     def _exec_jc(self, args, instr) -> None:
         if len(args) != 1:
-            raise ValueError(f"jc expects 1 operand at line {instr.line}")
+            raise ValueError(f"jc espera 1 operando en la línea {instr.line}")
         if self.cpu.get_flag(FLAG_CF):
             self._jump_to(self._resolve_jump_target(args[0]))
 
     def _exec_jnc(self, args, instr) -> None:
         if len(args) != 1:
-            raise ValueError(f"jnc expects 1 operand at line {instr.line}")
+            raise ValueError(f"jnc espera 1 operando en la línea {instr.line}")
         if not self.cpu.get_flag(FLAG_CF):
             self._jump_to(self._resolve_jump_target(args[0]))
 
     def _exec_jg(self, args, instr) -> None:
         if len(args) != 1:
-            raise ValueError(f"jg expects 1 operand at line {instr.line}")
+            raise ValueError(f"jg espera 1 operando en la línea {instr.line}")
         if not self.cpu.get_flag(FLAG_ZF) and (self.cpu.get_flag(FLAG_SF) == self.cpu.get_flag(FLAG_OF)):
             self._jump_to(self._resolve_jump_target(args[0]))
 
     def _exec_jl(self, args, instr) -> None:
         if len(args) != 1:
-            raise ValueError(f"jl expects 1 operand at line {instr.line}")
+            raise ValueError(f"jl espera 1 operando en la línea {instr.line}")
         if self.cpu.get_flag(FLAG_SF) != self.cpu.get_flag(FLAG_OF):
             self._jump_to(self._resolve_jump_target(args[0]))
 
     def _exec_jge(self, args, instr) -> None:
         if len(args) != 1:
-            raise ValueError(f"jge expects 1 operand at line {instr.line}")
+            raise ValueError(f"jge espera 1 operando en la línea {instr.line}")
         if self.cpu.get_flag(FLAG_SF) == self.cpu.get_flag(FLAG_OF):
             self._jump_to(self._resolve_jump_target(args[0]))
 
     def _exec_jle(self, args, instr) -> None:
         if len(args) != 1:
-            raise ValueError(f"jle expects 1 operand at line {instr.line}")
+            raise ValueError(f"jle espera 1 operando en la línea {instr.line}")
         if self.cpu.get_flag(FLAG_ZF) or (self.cpu.get_flag(FLAG_SF) != self.cpu.get_flag(FLAG_OF)):
             self._jump_to(self._resolve_jump_target(args[0]))
 
     def _exec_loop(self, args, instr, kind: str) -> None:
         if len(args) != 1:
-            raise ValueError(f"{kind} expects 1 operand at line {instr.line}")
+            raise ValueError(f"{kind} espera 1 operando en la línea {instr.line}")
         cx = (self.cpu.get_reg16("cx") - 1) & 0xFFFF
         self.cpu.set_reg16("cx", cx)
         should_jump = cx != 0
@@ -1341,17 +1341,17 @@ class InstructionExecutor:
 
     def _exec_pushf(self, args, instr) -> None:
         if args:
-            raise ValueError(f"pushf expects no operands at line {instr.line}")
+            raise ValueError(f"pushf no espera operandos en la línea {instr.line}")
         self._push16(self.cpu.flags)
 
     def _exec_popf(self, args, instr) -> None:
         if args:
-            raise ValueError(f"popf expects no operands at line {instr.line}")
+            raise ValueError(f"popf no espera operandos en la línea {instr.line}")
         self.cpu.flags = self._pop16()
 
     def _exec_xchg(self, args, instr) -> None:
         if len(args) != 2:
-            raise ValueError(f"xchg expects 2 operands at line {instr.line}")
+            raise ValueError(f"xchg espera 2 operandos en la línea {instr.line}")
         left = args[0].lower()
         right = args[1].lower()
         if left in self._reg8_names() and right in self._reg8_names():
@@ -1394,7 +1394,7 @@ class InstructionExecutor:
             self.cpu.set_reg16(right, mem)
             self._write_memory(left, size, reg)
             return
-        raise NotImplementedError(f"Unsupported xchg operands at line {instr.line}")
+        raise NotImplementedError(f"Operandos de xchg no soportados en la línea {instr.line}")
 
     def _exec_movs(self, size: int, rep: bool = False) -> None:
         count = self.cpu.get_reg16("cx") if rep else 1
@@ -1514,7 +1514,7 @@ class InstructionExecutor:
         if args:
             base = self._parse_number(args[0], label_ok=True) & 0xFF
         if base == 0:
-            raise ZeroDivisionError("AAM base cannot be zero")
+            raise ZeroDivisionError("La base de AAM no puede ser cero")
         al = self.cpu.get_reg8("al")
         ah = (al // base) & 0xFF
         al = (al % base) & 0xFF

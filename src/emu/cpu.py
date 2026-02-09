@@ -65,7 +65,7 @@ class CPU:
             return (self.dx >> 8) & 0xFF
         if name == "dl":
             return self.dx & 0xFF
-        raise KeyError(f"Unknown 8-bit register: {name}")
+        raise KeyError(f"Registro de 8 bits desconocido: {name}")
 
     def set_reg8(self, name: str, value: int) -> None:
         value = self._mask8(value)
@@ -94,7 +94,7 @@ class CPU:
         if name == "dl":
             self.dx = self._mask16((self.dx & 0xFF00) | value)
             return
-        raise KeyError(f"Unknown 8-bit register: {name}")
+        raise KeyError(f"Registro de 8 bits desconocido: {name}")
 
     def set_flag(self, mask: int, value: bool) -> None:
         if value:

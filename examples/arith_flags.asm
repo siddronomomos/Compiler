@@ -1,8 +1,8 @@
 .data
-msg_add db 'ADD and ADC results $'
-msg_sub db 'SUB and SBB results $'
-msg_logic db 'AND OR XOR TEST results $'
-msg_misc db 'INC DEC NEG NOT results $'
+msg_add db 'Resultados de ADD y ADC $'
+msg_sub db 'Resultados de SUB y SBB $'
+msg_logic db 'Resultados de AND OR XOR TEST $'
+msg_misc db 'Resultados de INC DEC NEG NOT $'
 hex_digits db '0123456789ABCDEF'
 
 .code

@@ -1,6 +1,6 @@
 .data
-msg_shift db 'SHL SHR SAR results $'
-msg_rot db 'ROL ROR results $'
+msg_shift db 'Resultados de SHL SHR SAR $'
+msg_rot db 'Resultados de ROL ROR $'
 hex_digits db '0123456789ABCDEF'
 
 .code

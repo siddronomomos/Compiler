@@ -1,146 +1,146 @@
-# MASM 6.11 Emulator (Python, subset)
+# Emulador MASM 6.11 (Python, subconjunto)
 
-This is a **software emulator** for a small MASM 6.11-compatible subset. It focuses on DOS interrupts for printing, file I/O, and text color. It does **not** assemble to machine code; it parses MASM-like syntax into an internal IR and interprets it.
+Este es un **emulador de software** para un pequeño subconjunto compatible con MASM 6.11. Se centra en las interrupciones DOS para impresión, E/S de archivos y color de texto. **No** ensambla a código máquina; analiza la sintaxis tipo MASM en un IR interno y la interpreta.
 
-## Current Features
-- 16-bit CPU state with flags (CF, PF, AF, ZF, SF, OF, IF, DF)
-- 1MB memory model
-- `.data`, `.code`, and `.stack` sections
-- `db`/`dw` data directives, `dup`, `org` in `.data`, and `equ` constants (including `$` expressions like `$ - label`)
-- MASM-style labels and `offset` support
-- String instructions with REP/REPE/REPNE semantics for `cmps`/`scas`
-- UI: code editor, breakpoints, register grid, and popup memory/stack viewers
+## Funciones actuales
+- Estado de CPU de 16 bits con banderas (CF, PF, AF, ZF, SF, OF, IF, DF)
+- Modelo de memoria de 1 MB
+- Secciones `.data`, `.code` y `.stack`
+- Directivas de datos `db`/`dw`, `dup`, `org` en `.data` y constantes `equ` (incluyendo expresiones con `$` como `$ - etiqueta`)
+- Etiquetas estilo MASM y soporte de `offset`
+- Instrucciones de cadena con semántica REP/REPE/REPNE para `cmps`/`scas`
+- IU: editor de código, puntos de interrupción, cuadrícula de registros y visores emergentes de memoria/pila
 
-## Instruction Reference
-### Data movement
-- `mov`: copy register/memory/immediate to register or memory
-- `lea`: load effective address (label offset) into a 16-bit register
-- `xchg`: exchange two registers or register with memory
-- `push`/`pop`: push/pop 16-bit value
-- `pushf`/`popf`: push/pop FLAGS
-- `pusha`/`popa`: push/pop all general registers
-- `enter`/`leave`: stack frame setup/teardown (`enter` supports nesting level 0 only)
-- `cbw`: sign-extend AL into AX
-- `cwd`: sign-extend AX into DX:AX
-- `xlat`: table lookup: AL = DS:[BX + AL]
+## Referencia de instrucciones
+### Movimiento de datos
+- `mov`: copia registro/memoria/inmediato a registro o memoria
+- `lea`: carga la dirección efectiva (offset de etiqueta) en un registro de 16 bits
+- `xchg`: intercambia dos registros o registro con memoria
+- `push`/`pop`: apilar/desapilar valor de 16 bits
+- `pushf`/`popf`: apilar/desapilar FLAGS
+- `pusha`/`popa`: apilar/desapilar todos los registros generales
+- `enter`/`leave`: configuración/desmontaje de marco de pila (`enter` solo soporta nivel de anidamiento 0)
+- `cbw`: extiende con signo AL a AX
+- `cwd`: extiende con signo AX a DX:AX
+- `xlat`: búsqueda en tabla: AL = DS:[BX + AL]
 
-### Arithmetic
-- `add`/`adc`: add (with carry)
-- `sub`/`sbb`: subtract (with borrow)
-- `cmp`: compare (subtract, set flags only)
-- `inc`/`dec`: increment/decrement
-- `neg`: two’s complement negate
-- `daa`/`das`: decimal adjust after add/sub
-- `aaa`/`aas`: ASCII adjust after add/sub
-- `aam`/`aad`: ASCII adjust after multiply/divide (base optional)
-- `mul`/`imul`: unsigned/signed multiply
-- `div`/`idiv`: unsigned/signed divide
+### Aritmética
+- `add`/`adc`: suma (con acarreo)
+- `sub`/`sbb`: resta (con préstamo)
+- `cmp`: compara (resta, solo actualiza banderas)
+- `inc`/`dec`: incrementa/decrementa
+- `neg`: negación en complemento a dos
+- `daa`/`das`: ajuste decimal después de suma/resta
+- `aaa`/`aas`: ajuste ASCII después de suma/resta
+- `aam`/`aad`: ajuste ASCII después de multiplicación/división (base opcional)
+- `mul`/`imul`: multiplicación sin signo/con signo
+- `div`/`idiv`: división sin signo/con signo
 
-### Logic and bit operations
-- `and`/`or`/`xor`: bitwise logic
-- `test`: logical AND that only updates flags
-- `not`: bitwise complement
-- `shl`/`sal`: shift left
-- `shr`: logical shift right
-- `sar`: arithmetic shift right
-- `rol`/`ror`: rotate left/right
+### Lógica y operaciones bit a bit
+- `and`/`or`/`xor`: lógica bit a bit
+- `test`: AND lógico que solo actualiza banderas
+- `not`: complemento bit a bit
+- `shl`/`sal`: desplazamiento a la izquierda
+- `shr`: desplazamiento lógico a la derecha
+- `sar`: desplazamiento aritmético a la derecha
+- `rol`/`ror`: rotación izquierda/derecha
 
-### Control flow
-- `jmp`: unconditional jump
-- `je`/`jz`: jump if ZF=1
-- `jne`/`jnz`: jump if ZF=0
-- `jc`: jump if CF=1
-- `jnc`/`jae`: jump if CF=0
-- `jg`: jump if greater (ZF=0 and SF=OF)
-- `jl`: jump if less (SF≠OF)
-- `jge`: jump if greater or equal (SF=OF)
-- `jle`: jump if less or equal (ZF=1 or SF≠OF)
-- `loop`: decrement CX and jump if not zero
-- `loope`: loop while CX!=0 and ZF=1
-- `loopne`: loop while CX!=0 and ZF=0
-- `call`: call procedure (push return address)
-- `ret`: return; if no return address, emulator halts
+### Flujo de control
+- `jmp`: salto incondicional
+- `je`/`jz`: salta si ZF=1
+- `jne`/`jnz`: salta si ZF=0
+- `jc`: salta si CF=1
+- `jnc`/`jae`: salta si CF=0
+- `jg`: salta si es mayor (ZF=0 y SF=OF)
+- `jl`: salta si es menor (SF≠OF)
+- `jge`: salta si es mayor o igual (SF=OF)
+- `jle`: salta si es menor o igual (ZF=1 o SF≠OF)
+- `loop`: decrementa CX y salta si no es cero
+- `loope`: bucle mientras CX!=0 y ZF=1
+- `loopne`: bucle mientras CX!=0 y ZF=0
+- `call`: llama a un procedimiento (apila la dirección de retorno)
+- `ret`: retorna; si no hay dirección de retorno, el emulador se detiene
 
-### Flags
-- `clc`/`stc`/`cmc`: clear/set/complement CF
-- `cli`/`sti`: clear/set IF
-- `lahf`: load SF,ZF,AF,PF,CF into AH
-- `sahf`: store AH into SF,ZF,AF,PF,CF
+### Banderas
+- `clc`/`stc`/`cmc`: limpia/establece/complementa CF
+- `cli`/`sti`: limpia/establece IF
+- `lahf`: carga SF,ZF,AF,PF,CF en AH
+- `sahf`: guarda AH en SF,ZF,AF,PF,CF
 
-### String instructions
-- `movsb`/`movsw`: move byte/word from DS:SI to ES:DI
-- `stosb`/`stosw`: store AL/AX to ES:DI
-- `lodsb`/`lodsw`: load from DS:SI into AL/AX
-- `cmpsb`/`cmpsw`: compare DS:SI with ES:DI
-- `scasb`/`scasw`: compare AL/AX with ES:DI
-- `rep`/`repe`/`repne`: repeat string instruction; `repe/repne` only affect `cmps`/`scas` termination
+### Instrucciones de cadena
+- `movsb`/`movsw`: mueve byte/palabra de DS:SI a ES:DI
+- `stosb`/`stosw`: almacena AL/AX en ES:DI
+- `lodsb`/`lodsw`: carga desde DS:SI a AL/AX
+- `cmpsb`/`cmpsw`: compara DS:SI con ES:DI
+- `scasb`/`scasw`: compara AL/AX con ES:DI
+- `rep`/`repe`/`repne`: repite instrucción de cadena; `repe/repne` solo afectan la terminación de `cmps`/`scas`
 
-### System
-- `int`: software interrupt
-- `int3`: breakpoint interrupt (halts emulator)
-- `iret`: return from interrupt (pop IP, CS, FLAGS)
-- `nop`: no operation
-- `hlt`: halt execution
+### Sistema
+- `int`: interrupción de software
+- `int3`: interrupción de punto de interrupción (detiene el emulador)
+- `iret`: retorno de interrupción (extrae IP, CS, FLAGS)
+- `nop`: sin operación
+- `hlt`: detiene la ejecución
 
-## Interrupts and Services
+## Interrupciones y servicios
 ### DOS INT 21h
-- `AH=01h`: read char with echo
-- `AH=08h`: read char without echo
-- `AH=0Ch`: clear input + read
-- `AH=02h`: display character (`DL`)
-- `AH=09h`: display `$`-terminated string (`DS:DX`)
-- `AH=0Ah`: buffered input (`DS:DX`)
-- `AH=1Ah`: set DTA
-- `AH=19h`: get current drive
-- `AH=3Ch`: create file (DOS 8.3)
-- `AH=3Dh`: open file (read/write/rdwr)
-- `AH=3Eh`: close file
-- `AH=3Fh`: read file
-- `AH=40h`: write file (handle 1 = stdout)
-- `AH=41h`: delete file
-- `AH=42h`: seek
-- `AH=43h`: get/set file attributes (get only)
-- `AH=47h`: get current directory
-- `AH=4Eh`: find first (DTA)
-- `AH=4Fh`: find next (DTA)
-- `AH=57h`: get/set file date/time (get only)
-- `AH=4Ch`: exit
+- `AH=01h`: leer carácter con eco
+- `AH=08h`: leer carácter sin eco
+- `AH=0Ch`: limpiar entrada + leer
+- `AH=02h`: mostrar carácter (`DL`)
+- `AH=09h`: mostrar cadena terminada en `$` (`DS:DX`)
+- `AH=0Ah`: entrada con búfer (`DS:DX`)
+- `AH=1Ah`: establecer DTA
+- `AH=19h`: obtener unidad actual
+- `AH=3Ch`: crear archivo (DOS 8.3)
+- `AH=3Dh`: abrir archivo (lectura/escritura/rdwr)
+- `AH=3Eh`: cerrar archivo
+- `AH=3Fh`: leer archivo
+- `AH=40h`: escribir archivo (handle 1 = stdout)
+- `AH=41h`: borrar archivo
+- `AH=42h`: mover puntero
+- `AH=43h`: obtener/establecer atributos de archivo (solo obtener)
+- `AH=47h`: obtener directorio actual
+- `AH=4Eh`: buscar primero (DTA)
+- `AH=4Fh`: buscar siguiente (DTA)
+- `AH=57h`: obtener/establecer fecha/hora de archivo (solo obtener)
+- `AH=4Ch`: salir
 
-### BIOS INT 10h (text mode)
-- `AH=00h`: set video mode
-- `AH=0Fh`: get video mode
-- `AH=02h`: set cursor position
-- `AH=03h`: get cursor position
-- `AH=0Bh`: set background/border
-- `AH=09h`: write char+attribute
-- `AH=0Eh`: teletype output
+### BIOS INT 10h (modo texto)
+- `AH=00h`: establecer modo de video
+- `AH=0Fh`: obtener modo de video
+- `AH=02h`: establecer posición del cursor
+- `AH=03h`: obtener posición del cursor
+- `AH=0Bh`: establecer fondo/borde
+- `AH=09h`: escribir carácter+atributo
+- `AH=0Eh`: salida teletipo
 
-### BIOS INT 16h (keyboard)
-- `AH=00h`: read key (returns AL)
-- `AH=01h`: check key (sets ZF if none)
+### BIOS INT 16h (teclado)
+- `AH=00h`: leer tecla (devuelve AL)
+- `AH=01h`: comprobar tecla (pone ZF si no hay)
 
-### BIOS INT 1Ah (time)
-- `AH=00h`: ticks since midnight in CX:DX
-- `AH=02h`: current time in BCD (CH=HH, CL=MM, DH=SS)
+### BIOS INT 1Ah (tiempo)
+- `AH=00h`: ticks desde medianoche en CX:DX
+- `AH=02h`: hora actual en BCD (CH=HH, CL=MM, DH=SS)
 
 ### DOS INT 20h
-- Terminate program (uses AL as exit code)
+- Terminar programa (usa AL como código de salida)
 
-## DOS 8.3 Rules
-- Filenames are validated strictly as 8.3 (per path segment).
-- Invalid names set `CF=1` and `AX` to an error code.
+## Reglas DOS 8.3
+- Los nombres de archivo se validan estrictamente como 8.3 (por segmento de ruta).
+- Los nombres inválidos ponen `CF=1` y `AX` en un código de error.
 
-## Assembler Parsing Notes
-- `equ` constants are supported.
-- `org` is supported in `.data`.
-- `dup` is supported in `db`/`dw` (e.g., `db 10 dup(0)`).
-- Binary literals are supported (e.g., `1011b`).
-- Escaped characters in strings are supported (e.g., `\n`, `\r`, `\t`).
+## Notas del analizador del ensamblador
+- Se soportan constantes `equ`.
+- Se soporta `org` en `.data`.
+- Se soporta `dup` en `db`/`dw` (p. ej., `db 10 dup(0)`).
+- Se soportan literales binarios (p. ej., `1011b`).
+- Se soportan caracteres escapados en cadenas (p. ej., `\n`, `\r`, `\t`).
 
-## Running the Examples
+## Ejecutar los ejemplos
 - `python src/main.py examples/hello.asm`
 - `python src/main.py examples/bubble_sort.asm`
 
-## Project Layout
-- src/emu: emulator core
-- examples: sample programs
+## Estructura del proyecto
+- src/emu: núcleo del emulador
+- examples: programas de ejemplo

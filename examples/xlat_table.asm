@@ -1,6 +1,6 @@
 .data
 table db 11h, 22h, 33h, 44h, 55h
-msg db 'XLAT result $'
+msg db 'Resultado de XLAT $'
 hex_digits db '0123456789ABCDEF'
 
 .code

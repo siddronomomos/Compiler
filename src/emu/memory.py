@@ -8,7 +8,7 @@ class Memory:
 
     def _check(self, addr: int, length: int = 1) -> None:
         if addr < 0 or addr + length > self.size:
-            raise IndexError(f"Memory access out of bounds: {addr:#x}")
+            raise IndexError(f"Acceso a memoria fuera de límites: {addr:#x}")
 
     def phys(self, segment: int, offset: int) -> int:
         return ((segment & 0xFFFF) << 4) + (offset & 0xFFFF)

@@ -122,7 +122,7 @@ class AsmParser:
                 in_quote = not in_quote
             elif ch == ":" and not in_quote:
                 return i
-            # Skip escaped characters inside quotes to avoid toggling on escaped quotes
+            # Omitir caracteres escapados dentro de comillas para evitar alternar por comillas escapadas
             if ch == "\\" and in_quote and i + 1 < len(line):
                 i += 2
                 continue

@@ -52,7 +52,7 @@ class Emulator:
 
     def run(self, max_steps: int = 100000) -> int:
         if self.program is None:
-            raise RuntimeError("No program loaded")
+            raise RuntimeError("No hay ningún programa cargado")
         steps = 0
         while not self.cpu.halted and steps < max_steps:
             if self.cpu.ip < 0 or self.cpu.ip >= len(self.program.instructions):
@@ -61,12 +61,12 @@ class Emulator:
             self._execute(instr)
             steps += 1
         if steps >= max_steps:
-            raise RuntimeError("Execution limit reached")
+            raise RuntimeError("Se alcanzó el límite de ejecución")
         return self.cpu.exit_code or 0
 
     def step(self) -> Instruction | None:
         if self.program is None:
-            raise RuntimeError("No program loaded")
+            raise RuntimeError("No hay ningún programa cargado")
         if self.cpu.halted:
             return None
         if self.cpu.ip < 0 or self.cpu.ip >= len(self.program.instructions):
@@ -78,7 +78,7 @@ class Emulator:
 
     def run_until_breakpoint(self, breakpoints: set[int] | None = None, max_steps: int = 100000) -> int:
         if self.program is None:
-            raise RuntimeError("No program loaded")
+            raise RuntimeError("No hay ningún programa cargado")
         steps = 0
         while not self.cpu.halted and steps < max_steps:
             if breakpoints and self.cpu.ip in breakpoints:
@@ -87,7 +87,7 @@ class Emulator:
                 break
             steps += 1
         if steps >= max_steps:
-            raise RuntimeError("Execution limit reached")
+            raise RuntimeError("Se alcanzó el límite de ejecución")
         return self.cpu.exit_code or 0
 
     def _execute(self, instr: Instruction) -> None:

@@ -2,9 +2,9 @@
 src db 10h, 20h, 30h, 40h, 50h
 len equ 5
 dst db 5 dup(0)
-msg_copy db 'REP MOVSB copied $'
-msg_cmp db 'REPE CMPSB remaining CX $'
-msg_find db 'REPNE SCASB remaining CX $'
+msg_copy db 'REP MOVSB copiado $'
+msg_cmp db 'REPE CMPSB CX restante $'
+msg_find db 'REPNE SCASB CX restante $'
 hex_digits db '0123456789ABCDEF'
 
 .code
