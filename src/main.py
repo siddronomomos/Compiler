@@ -443,6 +443,7 @@ class EmulatorUI:
             line = self.program.instructions[self.emu.cpu.ip].line
             self.code_text.tag_add("current_line", f"{line}.0", f"{line}.0 lineend")
             self.code_text.tag_configure("current_line", background="#fff4b8", foreground="#000000")
+            self.code_text.see(f"{line}.0")
 
     def _on_code_scroll(self, args, scrollbar: ttk.Scrollbar) -> None:
         scrollbar.set(*args)
