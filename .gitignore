@@ -28,4 +28,4 @@ htmlcov/
 *.log
 
 #user-specific files
-
+/user_programs/
