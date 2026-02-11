@@ -116,7 +116,7 @@ class EmulatorUI:
         code_frame.rowconfigure(0, weight=1)
         code_frame.columnconfigure(1, weight=1)
 
-        self.code_gutter = tk.Canvas(code_frame, width=28, highlightthickness=0, background="#1e1e1e")
+        self.code_gutter = tk.Canvas(code_frame, width=52, highlightthickness=0, background="#1e1e1e")
         self.code_gutter.grid(row=0, column=0, sticky="ns")
 
         self.code_text = tk.Text(code_frame, font=("Consolas", 11), wrap="none")
@@ -478,6 +478,7 @@ class EmulatorUI:
             y = info[1]
             line = int(line_index.split(".")[0])
             ip = self.line_to_ip.get(line)
+            self.code_gutter.create_text(48, y + 2, anchor="ne", text=str(line), fill="#c0c0c0", font=("Consolas", 9))
             if ip is not None and ip in self.breakpoints:
                 self.code_gutter.create_oval(8, y + 4, 20, y + 16, fill="#ff4d4d", outline="")
             if self.emu and self.program and 0 <= self.emu.cpu.ip < len(self.program.instructions):
