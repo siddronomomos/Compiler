@@ -30,6 +30,7 @@ class AsmParser:
         constants: dict[str, int] = {}
         stack_size: int | None = None
         data_offset = 0
+        code_offset = 0
 
         for line_no, raw in enumerate(lines, start=1):
             line = raw.split(";", 1)[0].strip()
@@ -39,9 +40,15 @@ class AsmParser:
             if line.startswith("name "):
                 continue
             if line.startswith("org "):
-                if data_offset is not None:
-                    pass
-                data_offset = self._parse_number(line.split(None, 1)[1])
+                value = self._parse_number(line.split(None, 1)[1])
+                if section == "code":
+                    if value < len(instructions):
+                        raise ValueError(f".org no puede retroceder en código en la línea {line_no}")
+                    while len(instructions) < value:
+                        instructions.append(Instruction(op="nop", args=[], line=line_no, raw=raw.rstrip("\n")))
+                    code_offset = value
+                else:
+                    data_offset = value
                 continue
             if lower == ".data":
                 section = "data"
@@ -67,8 +74,6 @@ class AsmParser:
 
             if section == "data":
                 if line.lower().startswith("org "):
-                    if data_offset is not None:
-                        pass
                     data_offset = self._parse_number(line.split(None, 1)[1])
                     continue
                 label, rest = self._split_label(line)

@@ -348,6 +348,13 @@ class InstructionExecutor:
             value = self._resolve_operand(src, size=16)
             self.cpu.set_reg16(dest, value)
             return
+        if self.program is not None and dest in self.program.data_labels:
+            size = self._resolve_size_hint(src)
+            if size is None:
+                raise NotImplementedError(f"mov a memoria requiere tamaño en la línea {instr.line}")
+            value = self._resolve_operand(src, size=size)
+            self._write_memory(f"[{dest}]", size, value)
+            return
         if self._is_memory(dest):
             size = self._resolve_mem_size(dest) or self._resolve_size_hint(src)
             if size is None:
@@ -364,7 +371,7 @@ class InstructionExecutor:
         label = args[1].lower()
         if dest not in self._reg16_names():
             raise NotImplementedError(f"El destino de lea debe ser un registro de 16 bits en la línea {instr.line}")
-        offset = self._resolve_label(label)
+        offset = self._resolve_offset_expr(label)
         self.cpu.set_reg16(dest, offset)
 
     def _exec_add(self, args, instr) -> None:
@@ -617,10 +624,37 @@ class InstructionExecutor:
             return self.cpu.get_reg16(token)
         if token.startswith("offset "):
             label = token.split(None, 1)[1]
-            return self._resolve_label(label)
+            return self._resolve_offset_expr(label)
         if self._is_memory(token):
             return self._read_memory(token, size)
         return self._parse_number(token, label_ok=True)
+
+    def _resolve_offset_expr(self, expr: str) -> int:
+        if self.program is None:
+            raise RuntimeError("No hay ningún programa cargado")
+        expr = expr.strip().lower()
+        if not expr:
+            raise ValueError("Expresión offset vacía")
+        total = 0
+        expr = expr.replace("-", "+-")
+        for term in expr.split("+"):
+            term = term.strip()
+            if not term:
+                continue
+            sign = 1
+            if term.startswith("-"):
+                sign = -1
+                term = term[1:].strip()
+            if not term:
+                continue
+            if term in self.program.data_labels:
+                value = self.program.data_labels[term]
+            elif term in self.program.constants:
+                value = self.program.constants[term]
+            else:
+                value = self._parse_number(term, label_ok=True)
+            total = (total + sign * value) & 0xFFFF
+        return total
 
     def _resolve_label(self, label: str) -> int:
         if self.program is None:

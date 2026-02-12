@@ -72,6 +72,7 @@ class EmulatorUI:
         self.stack_len_var = tk.StringVar(value="128")
         self._save_after_id: str | None = None
         self._dirty = False
+        self._halt_notified = False
         self.base_dir = Path(__file__).resolve().parent.parent
         self.examples_dir = self.base_dir / "examples"
         self.user_programs_dir = self.base_dir / "user_programs"
@@ -312,6 +313,7 @@ class EmulatorUI:
         self._update_memory_view()
         self._update_stack_view()
         self.status_var.set("Programa cargado")
+        self._halt_notified = False
 
     def _ensure_loaded(self) -> bool:
         code = self.code_text.get("1.0", "end-1c")
@@ -332,6 +334,7 @@ class EmulatorUI:
         self._update_state()
         self._update_memory_view()
         self._update_stack_view()
+        self._notify_program_end()
         if self.emu and self.emu.cpu.halted:
             self.status_var.set("Programa detenido")
         elif self.emu and self.emu.cpu.ip in self.breakpoints:
@@ -350,6 +353,7 @@ class EmulatorUI:
         self._update_state()
         self._update_memory_view()
         self._update_stack_view()
+        self._notify_program_end()
 
     def _add_breakpoint(self) -> None:
         if not self._ensure_loaded():
@@ -436,6 +440,17 @@ class EmulatorUI:
                 self._set_entry(entry, f"{regs[name]:04X}")
         self._highlight_current_line()
         self._refresh_gutter()
+
+    def _notify_program_end(self) -> None:
+        if self.emu is None or not self.emu.cpu.halted or self._halt_notified:
+            return
+        code = self.emu.cpu.exit_code
+        if code is None:
+            message = "El programa terminó."
+        else:
+            message = f"El programa terminó con código de salida {code}."
+        messagebox.showinfo("Programa finalizado", message)
+        self._halt_notified = True
 
     def _highlight_current_line(self) -> None:
         self.code_text.tag_remove("current_line", "1.0", "end")
