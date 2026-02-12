@@ -122,7 +122,11 @@ class InstructionExecutor:
         handler = self._dispatch.get(op)
         if handler is None:
             raise NotImplementedError(f"Operación no soportada: {op} en la línea {instr.line}")
+        current_ip = self.cpu.ip
         handler(op, args, instr)
+        if self.cpu.halted:
+            self.cpu.ip = current_ip
+            return
         self.cpu.ip += 1
 
     def _validate_operands(self, op: str, args: list[str], instr: Instruction) -> None:

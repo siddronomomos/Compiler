@@ -2,6 +2,7 @@
 .data
 buf db 16 dup(0)          ; Buffer usado para el visor de memoria
 word_val dw 0000h         ; Variable word para copiar registros
+msg db 'Hola mundo$'  ; Texto simple para imprimir
 .code
 start:
     mov ax, 1234h         ; Cargar registros con valores faciles de ver
@@ -28,6 +29,10 @@ start:
     pop ax
 
     call demo_stack_frame  ; Probar ENTER/LEAVE y operaciones de pila
+
+    mov ah, 09h           ; Imprimir texto terminado en '$'
+    lea dx, msg
+    int 21h
 
     mov ax, 4C00h          ; Salir con codigo de retorno 00h
     int 21h
